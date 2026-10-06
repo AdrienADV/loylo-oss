@@ -164,6 +164,19 @@ export function getApplePushConfig() {
 	};
 }
 
+export type ApplePushConfig = ReturnType<typeof getApplePushConfig>;
+
+/**
+ * Apple pushes are optional: `null` when the deployment sets no APNs key.
+ * Without them, Apple passes only update when their holder refreshes them.
+ */
+export function getOptionalApplePushConfig(): ApplePushConfig | null {
+	if (!process.env.APNS_KEY_ID && !process.env.APNS_KEY) {
+		return null;
+	}
+	return getApplePushConfig();
+}
+
 export function getGoogleWalletConfig() {
 	const env = parseEnv(googleWalletEnvSchema, "Google Wallet");
 	const serviceAccount = env.GOOGLE_SERVICE_ACCOUNT_JSON;

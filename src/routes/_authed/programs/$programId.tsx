@@ -45,6 +45,14 @@ function ProgramLayout() {
 						Overview
 					</Link>
 					<Link
+						to="/programs/$programId/scan"
+						params={{ programId: program.id }}
+						className={tabClass}
+						activeProps={{ className: "bg-muted text-foreground" }}
+					>
+						Scan
+					</Link>
+					<Link
 						to="/programs/$programId/share"
 						params={{ programId: program.id }}
 						className={tabClass}

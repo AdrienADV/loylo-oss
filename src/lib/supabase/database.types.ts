@@ -62,6 +62,25 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"point_transactions": {
+                  Row: {
+                    "balance_after": number,"created_at": string,"created_by": string | null,"delta": number,"id": number,"kind": Database["public"]['Enums']["point_transaction_kind"],"member_id": string
+                  }
+                  Insert: {
+                    "balance_after": number,"created_at"?: string,"created_by"?: string | null,"delta": number,"id"?: never,"kind": Database["public"]['Enums']["point_transaction_kind"],"member_id": string
+                  }
+                  Update: {
+                    "balance_after"?: number,"created_at"?: string,"created_by"?: string | null,"delta"?: number,"id"?: never,"kind"?: Database["public"]['Enums']["point_transaction_kind"],"member_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "point_transactions_member_id_fkey"
+      columns: ["member_id"]
+isOneToOne: false
+      referencedRelation: "members"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"programs": {
                   Row: {
                     "background_color": string,"created_at": string,"id": string,"initial_points": number,"logo_path": string | null,"name": string,"owner_id": string,"updated_at": string
@@ -100,7 +119,10 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "enroll_member":
+            "adjust_points":
+{ Args: { "delta": number,"member_id": string }; Returns: number
+                           },
+"enroll_member":
 { Args: { "email": string,"first_name": string,"last_name": string,"program_id": string,"provider": Database["public"]['Enums']["wallet_provider"] }; Returns: {
               "authentication_token": string,"serial_number": string
             }[]
@@ -115,6 +137,23 @@ isOneToOne: false
               "last_updated": string,"serial_number": string
             }[]
                            },
+"list_members":
+{ Args: { "after_created_at"?: string,"after_id"?: string,"page_size"?: number,"program_id": string,"search"?: string }; Returns: {
+              "created_at": string,
+"email": string,
+"first_name": string,
+"id": string,
+"last_name": string,
+"points": number,
+"program_id": string,
+"updated_at": string
+            }[]
+                          SetofOptions: {
+        from: "*"
+        to: "members"
+        isOneToOne: false
+        isSetofReturn: true
+      } },
 "record_wallet_pass_install":
 { Args: { "installed": boolean,"pass_id": string }; Returns: undefined
                            },
@@ -126,7 +165,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "wallet_provider": "apple"|"google"
+            "point_transaction_kind": "welcome"|"adjustment","wallet_provider": "apple"|"google"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -242,7 +281,7 @@ export type CompositeTypes<
 export const Constants = {
   "public": {
           Enums: {
-            "wallet_provider": ["apple", "google"]
+            "point_transaction_kind": ["welcome", "adjustment"],"wallet_provider": ["apple", "google"]
           }
         }
 } as const
