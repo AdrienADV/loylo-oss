@@ -11,3 +11,9 @@ Before editing files for a substantial task:
 <!-- intent-skills:end -->
 
 > Note: `@tanstack/devtools` also ships an `intent` binary that shadows the one from `@tanstack/intent`, so `bunx ... intent` fails in this repo. Use `bun run intent list` and `bun run intent load <package>#<skill>` instead.
+
+## Conventions
+
+- Write everything in English: code, comments, commit messages, PR titles and descriptions, review replies.
+- Commit messages follow Conventional Commits: `type(scope): description` (e.g. `feat(supabase): add server client`). Use `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, etc.
+- Do not add AI attribution (no `Co-Authored-By`, session links or "Generated with" footers) to commits or PRs.
