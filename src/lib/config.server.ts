@@ -177,6 +177,19 @@ export function getOptionalApplePushConfig(): ApplePushConfig | null {
 	return getApplePushConfig();
 }
 
+const notificationsEnvSchema = z.object({
+	// Unset or empty: the default. 0 turns marketing messages off.
+	NOTIFICATIONS_MONTHLY_CAP: z.preprocess(
+		(value) => (value === "" ? undefined : value),
+		z.coerce.number().int().min(0).max(100).default(4),
+	),
+});
+
+export function getNotificationsConfig() {
+	const env = parseEnv(notificationsEnvSchema, "notifications");
+	return { monthlyCap: env.NOTIFICATIONS_MONTHLY_CAP };
+}
+
 export function getGoogleWalletConfig() {
 	const env = parseEnv(googleWalletEnvSchema, "Google Wallet");
 	const serviceAccount = env.GOOGLE_SERVICE_ACCOUNT_JSON;
