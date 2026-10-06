@@ -15,7 +15,12 @@ export const Route = createRootRoute({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'TanStack Start Starter',
+        title: 'Loylo',
+      },
+      {
+        name: 'description',
+        content:
+          'Open-source loyalty cards for Apple Wallet and Google Wallet.',
       },
     ],
     links: [
