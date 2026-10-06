@@ -1,6 +1,6 @@
 # Loylo OSS — MVP plan
 
-Status: **validated plan**, implementation not started.
+Status: **validated plan**, in progress (PR 1 merged, PR 2 open).
 
 This document is the shared context for building Loylo OSS: what we build, what we decided,
 why, and in which order. Read it before starting any PR.
@@ -129,7 +129,7 @@ These findings drive the design principles below.
 | Pass signing (PKCS#7) | `passkit-generator` (`node-forge`, pure JS) with certs from env. To prove in PR 1. |
 | Google Wallet auth + save JWT | `jose` (WebCrypto) instead of `google-auth-library` / `jsonwebtoken`. |
 | Google callback verification | WebCrypto ECDSA P-256 instead of Node `crypto`. |
-| APNs push (HTTP/2 required) | Workers `fetch` likely cannot speak HTTP/2 to APNs. To prove in PR 2; fallback is a Supabase Edge Function (Deno) called by the app. |
+| APNs push (HTTP/2 required) | Deployed Workers reach APNs through `fetch`; local workerd cannot (cloudflare/workerd#4841), so pushes only work once deployed. No Edge Function needed. |
 | Marketing fan-out | Batch pushes; Cloudflare Queues if a program's device count exceeds per-request subrequest limits. |
 | Env vars | Not available at module scope: read per request (or via `cloudflare:workers` `env`), validated with Zod. |
 
@@ -257,7 +257,7 @@ PRs 1–3 have no database dependency and prove the risky parts on Workers first
 | # | Branch | Content | Migration |
 | --- | --- | --- | --- |
 | 1 | `feat/apple-pass-signing` | Typed config (Zod, per request), Apple `pass.json` builder (Zod), signing with `passkit-generator`, the `.pkpass` validation test, demo route returning a `.pkpass`. | — |
-| 2 | `feat/apple-push` | APNs adapter (`.p8` token auth), tried from Workers first, else Supabase Edge Function `apple-push` in `supabase/functions`. Demo trigger. | — |
+| 2 | `feat/apple-push` | APNs adapter in the Worker (`.p8` token auth with `jose`), per-device results (sent / unregistered / failed). | — |
 | 3 | `feat/google-wallet` | Google adapter with `jose`: service-account token, class / object builders (Zod), save JWT, object patch, `addMessage`, callback signature verification (WebCrypto). Demo route. | — |
 | 4 | `feat/database-foundations` | `citext`, `wallet_provider` enum, `set_updated_at()`, `programs` + RLS, `program-assets` bucket + policies, `gen:types` script, typed server / browser / admin clients, removal of the starter demo. | `create_programs` |
 | 5 | `feat/auth` | Sign up, sign in, sign out, forgot / reset password, `/auth/confirm`, `authMiddleware`, `_authed` layout, auth settings in `config.toml`. | — |
@@ -277,9 +277,9 @@ PRs 1–3 have no database dependency and prove the risky parts on Workers first
      hashes match the files, PKCS#7 signature verifies, required `pass.json` fields present.
    - Done when the test passes in `workerd` and the demo `.pkpass` opens on an iPhone.
 2. **`feat/apple-push`**
-   - `src/lib/wallet/apple/apns.server.ts` (ES256 provider token via `jose`).
-   - Done when a pass update push reaches a real device; the chosen runtime (Workers or Edge
-     Function) is recorded in this document.
+   - `src/lib/wallet/apple/apns.server.ts` (ES256 provider token via `jose`), runs in the Worker.
+   - Done when the module sends correct requests (checked with a mocked `fetch`); a real push
+     to a device is checked once the Worker is deployed with registered passes (PR 8–9).
 3. **`feat/google-wallet`**
    - `src/lib/wallet/google/*.server.ts`, `WalletProvider` interface shared with Apple.
    - Done when the demo save link adds a pass to Google Wallet and a points patch shows up.
