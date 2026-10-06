@@ -10,8 +10,9 @@ const browserEnvSchema = z.object({
 });
 
 /**
- * Supabase client for the browser. Data access goes through server functions;
- * keep this for browser-only features.
+ * Supabase client for the browser, without a session: the session cookies are
+ * `HttpOnly` and only handled on the server. Data access goes through server
+ * functions; keep this for public, browser-only features.
  */
 export function createClient() {
 	const env = browserEnvSchema.parse(import.meta.env);
