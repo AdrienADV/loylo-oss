@@ -6,6 +6,7 @@ import {
 	PROGRAM_IMAGES,
 	type ProgramImageName,
 } from "#/features/programs/programs.schemas";
+import type { WalletSyncResult } from "#/features/wallet-sync/wallet-sync";
 import { getOptionalGoogleWalletConfig } from "#/lib/config.server";
 import type { Database, Tables } from "#/lib/supabase/database.types";
 import { createGoogleWalletClient } from "#/lib/wallet/google/client.server";
@@ -171,8 +172,6 @@ export async function removeProgramImages(
 		console.error("Could not remove program images", folder, error.message);
 	}
 }
-
-export type WalletSyncResult = "synced" | "skipped" | "failed";
 
 /**
  * Creates or updates the program's Google Wallet class. Never throws: the

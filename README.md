@@ -6,7 +6,7 @@ customers add it to their phone's wallet, and the card shows their points.
 Built with [TanStack Start](https://tanstack.com/start) on Cloudflare Workers and
 [Supabase](https://supabase.com) (Postgres, Auth, Storage), with the shadcn design system.
 
-> **Status: work in progress.** The MVP is built in 11 pull requests; PRs 1–8 are merged.
+> **Status: work in progress.** The MVP is built in 11 pull requests; PRs 1–9 are merged.
 > [`docs/PLAN.md`](docs/PLAN.md) has the full plan, the decisions taken so far and what comes
 > next. A self-hosting guide comes with PR 11.
 
@@ -18,13 +18,17 @@ Built with [TanStack Start](https://tanstack.com/start) on Cloudflare Workers an
 - **Enrollment**: a public page per program (`/join/{programId}`) and its QR code, where customers
   enter their name and email and add the card to Apple Wallet or Google Wallet. Merchants can also
   issue a card at the counter: the customer scans a QR code to add it.
+- **Members and points**: each program lists its members with search, pagination and whether
+  their card is in their wallet. Merchants scan a card with the phone's camera (or a barcode
+  scanner) to open the member, add or redeem points, and see the history of every change.
 - **Wallet integration**:
   - Apple passes are signed on the fly from the database.
   - Google passes are created through the Google Wallet API.
   - Apple's PassKit Web Service and Google's callbacks track whether each pass is installed.
+  - After a points change, Apple devices get a push and download the updated pass, and Google
+    passes get their new balance.
 
-Coming next: points (scan, add / redeem, history) and pass updates on the devices (PR 9),
-marketing notifications (PR 10), account management and the landing page (PR 11).
+Coming next: marketing notifications (PR 10), account management and the landing page (PR 11).
 
 Each wallet is optional: without its configuration, its button does not show.
 
@@ -69,7 +73,8 @@ Wallet limitations in development:
 ## Project layout
 
 - `src/features/` — one folder per feature (`auth`, `programs`, `members`, `enrollment`,
-  `wallet-services`): Zod schemas, server functions, server-only use cases, components.
+  `wallet-services`, `wallet-sync`): Zod schemas, server functions, server-only use cases,
+  components.
 - `src/lib/wallet/` — Apple (pass builder, signing, APNs) and Google (API client, objects,
   callback verification) adapters.
 - `src/routes/` — pages and server routes (file-based routing).

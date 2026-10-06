@@ -23,11 +23,13 @@ import { Route as AuthedProgramsProgramIdRouteImport } from './routes/_authed/pr
 import { Route as AuthedProgramsNewRouteImport } from './routes/_authed/programs/new'
 import { Route as ApiGoogleCallbackRouteImport } from './routes/api/google/callback'
 import { Route as AuthedProgramsProgramIdIndexRouteImport } from './routes/_authed/programs/$programId/index'
+import { Route as AuthedProgramsProgramIdScanRouteImport } from './routes/_authed/programs/$programId/scan'
 import { Route as AuthedProgramsProgramIdSettingsRouteImport } from './routes/_authed/programs/$programId/settings'
 import { Route as AuthedProgramsProgramIdShareRouteImport } from './routes/_authed/programs/$programId/share'
 import { Route as ApiApplePassesSerialNumberRouteImport } from './routes/api/apple/passes/$serialNumber'
 import { Route as ApiAppleV1LogRouteImport } from './routes/api/apple/v1/log'
 import { Route as ApiGooglePassesSerialNumberRouteImport } from './routes/api/google/passes/$serialNumber'
+import { Route as AuthedProgramsProgramIdMembersMemberIdRouteImport } from './routes/_authed/programs/$programId/members/$memberId'
 import { Route as AuthedProgramsProgramIdMembersNewRouteImport } from './routes/_authed/programs/$programId/members/new'
 import { Route as ApiAppleV1PassesPassTypeIdentifierSerialNumberRouteImport } from './routes/api/apple/v1/passes/$passTypeIdentifier/$serialNumber'
 import { Route as ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierIndexRouteImport } from './routes/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/index'
@@ -102,6 +104,12 @@ const AuthedProgramsProgramIdIndexRoute =
     path: '/',
     getParentRoute: () => AuthedProgramsProgramIdRoute,
   } as any)
+const AuthedProgramsProgramIdScanRoute =
+  AuthedProgramsProgramIdScanRouteImport.update({
+    id: '/scan',
+    path: '/scan',
+    getParentRoute: () => AuthedProgramsProgramIdRoute,
+  } as any)
 const AuthedProgramsProgramIdSettingsRoute =
   AuthedProgramsProgramIdSettingsRouteImport.update({
     id: '/settings',
@@ -130,6 +138,12 @@ const ApiGooglePassesSerialNumberRoute =
     id: '/api/google/passes/$serialNumber',
     path: '/api/google/passes/$serialNumber',
     getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthedProgramsProgramIdMembersMemberIdRoute =
+  AuthedProgramsProgramIdMembersMemberIdRouteImport.update({
+    id: '/members/$memberId',
+    path: '/members/$memberId',
+    getParentRoute: () => AuthedProgramsProgramIdRoute,
   } as any)
 const AuthedProgramsProgramIdMembersNewRoute =
   AuthedProgramsProgramIdMembersNewRouteImport.update({
@@ -172,12 +186,14 @@ export interface FileRoutesByFullPath {
   '/programs/$programId': typeof AuthedProgramsProgramIdRouteWithChildren
   '/programs/new': typeof AuthedProgramsNewRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
+  '/programs/$programId/scan': typeof AuthedProgramsProgramIdScanRoute
   '/programs/$programId/settings': typeof AuthedProgramsProgramIdSettingsRoute
   '/programs/$programId/share': typeof AuthedProgramsProgramIdShareRoute
   '/api/apple/passes/$serialNumber': typeof ApiApplePassesSerialNumberRoute
   '/api/apple/v1/log': typeof ApiAppleV1LogRoute
   '/api/google/passes/$serialNumber': typeof ApiGooglePassesSerialNumberRoute
   '/programs/$programId/': typeof AuthedProgramsProgramIdIndexRoute
+  '/programs/$programId/members/$memberId': typeof AuthedProgramsProgramIdMembersMemberIdRoute
   '/programs/$programId/members/new': typeof AuthedProgramsProgramIdMembersNewRoute
   '/api/apple/v1/passes/$passTypeIdentifier/$serialNumber': typeof ApiAppleV1PassesPassTypeIdentifierSerialNumberRoute
   '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber': typeof ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierSerialNumberRoute
@@ -194,12 +210,14 @@ export interface FileRoutesByTo {
   '/join/$programId': typeof JoinProgramIdRoute
   '/programs/new': typeof AuthedProgramsNewRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
+  '/programs/$programId/scan': typeof AuthedProgramsProgramIdScanRoute
   '/programs/$programId/settings': typeof AuthedProgramsProgramIdSettingsRoute
   '/programs/$programId/share': typeof AuthedProgramsProgramIdShareRoute
   '/api/apple/passes/$serialNumber': typeof ApiApplePassesSerialNumberRoute
   '/api/apple/v1/log': typeof ApiAppleV1LogRoute
   '/api/google/passes/$serialNumber': typeof ApiGooglePassesSerialNumberRoute
   '/programs/$programId': typeof AuthedProgramsProgramIdIndexRoute
+  '/programs/$programId/members/$memberId': typeof AuthedProgramsProgramIdMembersMemberIdRoute
   '/programs/$programId/members/new': typeof AuthedProgramsProgramIdMembersNewRoute
   '/api/apple/v1/passes/$passTypeIdentifier/$serialNumber': typeof ApiAppleV1PassesPassTypeIdentifierSerialNumberRoute
   '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber': typeof ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierSerialNumberRoute
@@ -220,12 +238,14 @@ export interface FileRoutesById {
   '/_authed/programs/$programId': typeof AuthedProgramsProgramIdRouteWithChildren
   '/_authed/programs/new': typeof AuthedProgramsNewRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
+  '/_authed/programs/$programId/scan': typeof AuthedProgramsProgramIdScanRoute
   '/_authed/programs/$programId/settings': typeof AuthedProgramsProgramIdSettingsRoute
   '/_authed/programs/$programId/share': typeof AuthedProgramsProgramIdShareRoute
   '/api/apple/passes/$serialNumber': typeof ApiApplePassesSerialNumberRoute
   '/api/apple/v1/log': typeof ApiAppleV1LogRoute
   '/api/google/passes/$serialNumber': typeof ApiGooglePassesSerialNumberRoute
   '/_authed/programs/$programId/': typeof AuthedProgramsProgramIdIndexRoute
+  '/_authed/programs/$programId/members/$memberId': typeof AuthedProgramsProgramIdMembersMemberIdRoute
   '/_authed/programs/$programId/members/new': typeof AuthedProgramsProgramIdMembersNewRoute
   '/api/apple/v1/passes/$passTypeIdentifier/$serialNumber': typeof ApiAppleV1PassesPassTypeIdentifierSerialNumberRoute
   '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber': typeof ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierSerialNumberRoute
@@ -245,12 +265,14 @@ export interface FileRouteTypes {
     | '/programs/$programId'
     | '/programs/new'
     | '/api/google/callback'
+    | '/programs/$programId/scan'
     | '/programs/$programId/settings'
     | '/programs/$programId/share'
     | '/api/apple/passes/$serialNumber'
     | '/api/apple/v1/log'
     | '/api/google/passes/$serialNumber'
     | '/programs/$programId/'
+    | '/programs/$programId/members/$memberId'
     | '/programs/$programId/members/new'
     | '/api/apple/v1/passes/$passTypeIdentifier/$serialNumber'
     | '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber'
@@ -267,12 +289,14 @@ export interface FileRouteTypes {
     | '/join/$programId'
     | '/programs/new'
     | '/api/google/callback'
+    | '/programs/$programId/scan'
     | '/programs/$programId/settings'
     | '/programs/$programId/share'
     | '/api/apple/passes/$serialNumber'
     | '/api/apple/v1/log'
     | '/api/google/passes/$serialNumber'
     | '/programs/$programId'
+    | '/programs/$programId/members/$memberId'
     | '/programs/$programId/members/new'
     | '/api/apple/v1/passes/$passTypeIdentifier/$serialNumber'
     | '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber'
@@ -292,12 +316,14 @@ export interface FileRouteTypes {
     | '/_authed/programs/$programId'
     | '/_authed/programs/new'
     | '/api/google/callback'
+    | '/_authed/programs/$programId/scan'
     | '/_authed/programs/$programId/settings'
     | '/_authed/programs/$programId/share'
     | '/api/apple/passes/$serialNumber'
     | '/api/apple/v1/log'
     | '/api/google/passes/$serialNumber'
     | '/_authed/programs/$programId/'
+    | '/_authed/programs/$programId/members/$memberId'
     | '/_authed/programs/$programId/members/new'
     | '/api/apple/v1/passes/$passTypeIdentifier/$serialNumber'
     | '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber'
@@ -419,6 +445,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedProgramsProgramIdIndexRouteImport
       parentRoute: typeof AuthedProgramsProgramIdRoute
     }
+    '/_authed/programs/$programId/scan': {
+      id: '/_authed/programs/$programId/scan'
+      path: '/scan'
+      fullPath: '/programs/$programId/scan'
+      preLoaderRoute: typeof AuthedProgramsProgramIdScanRouteImport
+      parentRoute: typeof AuthedProgramsProgramIdRoute
+    }
     '/_authed/programs/$programId/settings': {
       id: '/_authed/programs/$programId/settings'
       path: '/settings'
@@ -454,6 +487,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGooglePassesSerialNumberRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed/programs/$programId/members/$memberId': {
+      id: '/_authed/programs/$programId/members/$memberId'
+      path: '/members/$memberId'
+      fullPath: '/programs/$programId/members/$memberId'
+      preLoaderRoute: typeof AuthedProgramsProgramIdMembersMemberIdRouteImport
+      parentRoute: typeof AuthedProgramsProgramIdRoute
+    }
     '/_authed/programs/$programId/members/new': {
       id: '/_authed/programs/$programId/members/new'
       path: '/members/new'
@@ -486,17 +526,22 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedProgramsProgramIdRouteChildren {
+  AuthedProgramsProgramIdScanRoute: typeof AuthedProgramsProgramIdScanRoute
   AuthedProgramsProgramIdSettingsRoute: typeof AuthedProgramsProgramIdSettingsRoute
   AuthedProgramsProgramIdShareRoute: typeof AuthedProgramsProgramIdShareRoute
   AuthedProgramsProgramIdIndexRoute: typeof AuthedProgramsProgramIdIndexRoute
+  AuthedProgramsProgramIdMembersMemberIdRoute: typeof AuthedProgramsProgramIdMembersMemberIdRoute
   AuthedProgramsProgramIdMembersNewRoute: typeof AuthedProgramsProgramIdMembersNewRoute
 }
 
 const AuthedProgramsProgramIdRouteChildren: AuthedProgramsProgramIdRouteChildren =
   {
+    AuthedProgramsProgramIdScanRoute: AuthedProgramsProgramIdScanRoute,
     AuthedProgramsProgramIdSettingsRoute: AuthedProgramsProgramIdSettingsRoute,
     AuthedProgramsProgramIdShareRoute: AuthedProgramsProgramIdShareRoute,
     AuthedProgramsProgramIdIndexRoute: AuthedProgramsProgramIdIndexRoute,
+    AuthedProgramsProgramIdMembersMemberIdRoute:
+      AuthedProgramsProgramIdMembersMemberIdRoute,
     AuthedProgramsProgramIdMembersNewRoute:
       AuthedProgramsProgramIdMembersNewRoute,
   }
