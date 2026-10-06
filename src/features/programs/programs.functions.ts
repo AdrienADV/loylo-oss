@@ -15,6 +15,7 @@ import {
 	toProgramView,
 	uploadProgramImages,
 } from "#/features/programs/programs.server";
+import { syncProgramWallets } from "#/features/wallet-sync/wallet-sync.server";
 import { databaseError } from "#/lib/supabase/errors.server";
 
 /**
@@ -155,9 +156,10 @@ export const updateProgram = createServerFn({ method: "POST" })
 			await removeProgramImages(context.supabase, current.logo_path);
 		}
 
+		// Apple devices download the passes again, Google passes follow their class.
 		return {
 			program: toProgramView(context.supabase, row),
-			googleWallet: await syncGoogleLoyaltyClass(context.supabase, row),
+			walletSync: await syncProgramWallets(context.supabase, row),
 		};
 	});
 
@@ -181,4 +183,28 @@ export const deleteProgram = createServerFn({ method: "POST" })
 		if (row.logo_path) {
 			await removeProgramImages(context.supabase, row.logo_path);
 		}
+	});
+
+/**
+ * Sends the program's design and current message to all its passes again,
+ * after a sync failed. It never notifies: Apple only notifies changes the
+ * device has not shown yet, and Google messages are only added by
+ * `sendNotification`.
+ */
+export const retryProgramWalletSync = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.validator(programIdSchema)
+	.handler(async ({ data, context }) => {
+		const { data: row, error } = await context.supabase
+			.from("programs")
+			.select("id, name, background_color, logo_path, wallet_message")
+			.eq("id", data.programId)
+			.maybeSingle();
+		if (error) {
+			throw databaseError("update the cards", error);
+		}
+		if (!row) {
+			throw notFound();
+		}
+		return { walletSync: await syncProgramWallets(context.supabase, row) };
 	});

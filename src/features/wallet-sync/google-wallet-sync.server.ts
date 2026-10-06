@@ -1,3 +1,4 @@
+import { syncGoogleLoyaltyClass } from "#/features/programs/programs.server";
 import {
 	combineSyncResults,
 	type WalletSync,
@@ -8,11 +9,15 @@ import {
 	createGoogleWalletClient,
 	GoogleWalletApiError,
 } from "#/lib/wallet/google/client.server";
-import { toGoogleWalletId } from "#/lib/wallet/google/objects";
+import {
+	buildProgramMessage,
+	toGoogleWalletId,
+} from "#/lib/wallet/google/objects";
 
 /**
- * Google Wallet: passes show their object, so updating the object updates
- * the pass on every device. Object IDs are `{issuer}.{wallet pass id}`.
+ * Google Wallet: passes show their object and its class, so updating them
+ * updates the passes on every device. Object IDs are `{issuer}.{wallet pass
+ * id}`, class IDs `{issuer}.{program id}`.
  */
 export const googleWalletSync: WalletSync = {
 	async syncMemberPasses({ points, passIds }) {
@@ -42,5 +47,38 @@ export const googleWalletSync: WalletSync = {
 			}),
 		);
 		return combineSyncResults(results);
+	},
+
+	// The class carries the program's design and message.
+	syncProgramPasses: syncGoogleLoyaltyClass,
+
+	async sendProgramMessage(supabase, program) {
+		const config = getOptionalGoogleWalletConfig();
+		if (!config || !program.wallet_message) {
+			return "skipped";
+		}
+
+		// Google's documented way to notify holders: `addMessage` with
+		// `TEXT_AND_NOTIFY`. Class updates only carry `TEXT` messages.
+		try {
+			await createGoogleWalletClient(
+				config.serviceAccount,
+			).addLoyaltyClassMessage(
+				toGoogleWalletId(config.issuerId, program.id),
+				buildProgramMessage(
+					program.name,
+					program.wallet_message,
+					"TEXT_AND_NOTIFY",
+				),
+			);
+		} catch (error) {
+			// Without a class, no pass exists yet: the sync below creates it.
+			if (!(error instanceof GoogleWalletApiError && error.status === 404)) {
+				console.error("Google Wallet message failed", program.id, error);
+				return "failed";
+			}
+		}
+		// Replaces the class, which keeps the new message as its only one.
+		return syncGoogleLoyaltyClass(supabase, program);
 	},
 };
