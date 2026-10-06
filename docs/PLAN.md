@@ -20,6 +20,7 @@ reference only.
 | Data | Fresh start, no import from Loylo |
 | Logo background removal | Dropped |
 | Tests | Only the `.pkpass` validation test (run in the Workers runtime) |
+| CI | None; migrations in `supabase/migrations`, applied locally with the Supabase CLI |
 
 ## MVP scope
 
@@ -34,7 +35,7 @@ reference only.
 These drive the design principles below.
 
 1. **Schema not versioned.** No migrations, no generated types (`any` everywhere), RLS only
-   visible in the dashboard. → Everything in `supabase/migrations`, types generated and checked in CI.
+   visible in the dashboard. → Everything in `supabase/migrations`, types generated with `supabase gen types`.
 2. **Two backends, split authorization.** The app queries tables directly *and* calls the API;
    the API skips ownership checks (`cards/*/update`, `cards/generate`). → One entry point
    (server functions), RLS as the authorization boundary, the user-scoped client by default.
@@ -61,7 +62,7 @@ These drive the design principles below.
 12. **`is_activated` flag** flipped by any single device unregistering. → Derived from registrations / callbacks.
 13. **Overly strict validation.** Names of at least 3 characters ("Li" rejected), forced
     capitalization ("McDonald" → "Mcdonald"). → Permissive names, strict on what matters.
-14. **No tests.** → Static checks in CI, plus one test that validates generated `.pkpass` files.
+14. **No tests.** → No CI; a single test validates generated `.pkpass` files.
 
 ## Design principles
 
@@ -167,17 +168,24 @@ Google callback `/api/google/callback`.
 `APPLE_SIGNER_CERT`, `APPLE_SIGNER_KEY`, `APPLE_SIGNER_KEY_PASSPHRASE`, `APNS_KEY_ID`, `APNS_KEY`,
 `GOOGLE_ISSUER_ID`, `GOOGLE_SERVICE_ACCOUNT_JSON`, `NOTIFICATIONS_MONTHLY_CAP`.
 
-## Milestones
+## Pull requests
 
-0. **Wallet spikes**: sign a `.pkpass` on Workers, covered by the only test of the project
-   (Vitest with `@cloudflare/vitest-pool-workers`, so it runs in `workerd`: manifest hashes,
-   PKCS#7 signature, required `pass.json` fields); APNs push from Workers vs Edge Function;
-   Google save JWT with `jose`. Outcome decides the wallet adapters.
-1. **Foundations**: CI (Biome, `tsc`, `.pkpass` test, `supabase db lint`, types drift check),
-   env config, schema + RLS, auth pages, `authMiddleware`, `_authed` layout.
-2. **Programs**: CRUD, browser image processing, pass preview, Google class creation.
-3. **Passes**: enrollment page, manual issue, Apple signing + download + web service, Google save
-   link + callback.
-4. **Points**: members list, scan, `adjust_points`, history, wallet sync.
-5. **Marketing notifications**: `create_notification`, Apple `changeMessage` + push, Google `addMessage`.
-6. **Polish**: account deletion, landing page, self-hosting docs.
+Each PR adds its own timestamped migration in `supabase/migrations` (created with
+`supabase migration new`), applied locally with `supabase db reset`, followed by
+`bun run gen:types` to regenerate `src/lib/supabase/database.types.ts`.
+
+| # | Branch | Content | Migration |
+| --- | --- | --- | --- |
+| 1 | `feat/apple-pass-signing` | Typed config (Zod, per request), Apple `pass.json` builder (Zod), signing with `passkit-generator`, the `.pkpass` validation test in `workerd`, demo route returning a `.pkpass`. | — |
+| 2 | `feat/apple-push` | APNs adapter (`.p8` token auth). Tried from Workers first; if HTTP/2 is not available, Supabase Edge Function `apple-push` in `supabase/functions`. Demo trigger. | — |
+| 3 | `feat/google-wallet` | Google adapter with `jose`: service-account token, class / object builders (Zod), save JWT, object patch, `addMessage`, callback signature verification (WebCrypto). Demo route. | — |
+| 4 | `feat/database-foundations` | `citext`, `wallet_provider` enum, `set_updated_at()` trigger function, `programs` table + RLS, `program-assets` bucket + storage policies, `gen:types` script, typed server / browser / admin clients, removal of the starter demo. | `create_programs` |
+| 5 | `feat/auth` | Sign up, sign in, sign out, forgot / reset password, `/auth/confirm`, `authMiddleware`, `_authed` layout, auth settings in `config.toml`. | — |
+| 6 | `feat/programs` | Dashboard, create program with live pass preview and browser image resize, Google class creation, settings (edit / delete). | — |
+| 7 | `feat/enrollment` | `members` + `wallet_passes` tables, `/join/$programId`, manual issue, `.pkpass` download route, Google save link, share page (link + QR). | `create_members_and_wallet_passes` |
+| 8 | `feat/wallet-web-services` | `apple_devices` + `apple_registrations`, Apple PassKit Web Service routes, Google callback route, install state. | `create_apple_registrations` |
+| 9 | `feat/points` | `point_transactions` + `adjust_points()`, members list (search, pagination), member page (balance, add / redeem, history), scan page, wallet sync after each change. | `create_point_transactions` |
+| 10 | `feat/marketing-notifications` | `notifications` + `create_notification()` (24 h rule, monthly cap from env), compose page with preview and history, Apple `changeMessage` + push, Google `addMessage`. | `create_notifications` |
+| 11 | `feat/account` | Account page (email, password, delete account), landing page, README for self-hosting. | — |
+
+PRs 1–3 have no database dependency and remove the Workers risk first.
