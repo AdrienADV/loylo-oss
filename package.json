@@ -15,7 +15,8 @@
     "check": "biome check",
     "deploy": "bun run build && wrangler deploy",
     "intent": "node node_modules/@tanstack/intent/dist/cli.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "gen:types": "supabase gen types typescript --local --schema public > src/lib/supabase/database.types.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -53,6 +54,7 @@
     "asn1js": "^3.0.10",
     "fflate": "^0.8.3",
     "pkijs": "^3.4.1",
+    "supabase": "^2.119.0",
     "typescript": "^6.0.2",
     "vite": "^8.0.0",
     "vitest": "^4.1.0",
