@@ -1,6 +1,6 @@
 # Loylo OSS — MVP plan
 
-Status: **validated plan**, in progress (PR 1 merged, PR 2 open).
+Status: **validated plan**, in progress (PRs 1–2 merged, PR 3 open).
 
 This document is the shared context for building Loylo OSS: what we build, what we decided,
 why, and in which order. Read it before starting any PR.
@@ -264,7 +264,7 @@ PRs 1–3 have no database dependency and prove the risky parts on Workers first
 | 6 | `feat/programs` | Dashboard, create program with live pass preview and browser image resize, Google class creation, settings (edit / delete). | — |
 | 7 | `feat/enrollment` | `members` + `wallet_passes`, `/join/$programId`, manual issue, `.pkpass` download route, Google save link, share page (link + QR). | `create_members_and_wallet_passes` |
 | 8 | `feat/wallet-web-services` | `apple_devices` + `apple_registrations`, Apple PassKit Web Service routes, Google callback route, install state. | `create_apple_registrations` |
-| 9 | `feat/points` | `point_transactions` + `adjust_points()`, members list, member page (balance, add / redeem, history), scan page, wallet sync after each change. | `create_point_transactions` |
+| 9 | `feat/points` | `point_transactions` + `adjust_points()`, members list, member page (balance, add / redeem, history), scan page, `WalletProvider` interface and wallet sync after each change. | `create_point_transactions` |
 | 10 | `feat/marketing-notifications` | `notifications` + `create_notification()`, compose page with preview and history, Apple `changeMessage` + push, Google `addMessage`. | `create_notifications` |
 | 11 | `feat/account` | Account page (email, password, delete account), landing page, README for self-hosting. | — |
 
@@ -281,7 +281,8 @@ PRs 1–3 have no database dependency and prove the risky parts on Workers first
    - Done when the module sends correct requests (checked with a mocked `fetch`); a real push
      to a device is checked once the Worker is deployed with registered passes (PR 8–9).
 3. **`feat/google-wallet`**
-   - `src/lib/wallet/google/*.server.ts`, `WalletProvider` interface shared with Apple.
+   - `src/lib/wallet/google/` (builders, API client, callback verification). The
+     `WalletProvider` interface is defined in PR 9, where both wallets are first used.
    - Done when the demo save link adds a pass to Google Wallet and a points patch shows up.
 4. **`feat/database-foundations`**
    - Done when `supabase db reset` applies cleanly, types are generated, and the starter
