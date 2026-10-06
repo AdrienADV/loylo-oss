@@ -75,33 +75,51 @@ function secretsMatch(actual: string, expected: string): boolean {
 	return difference === 0;
 }
 
-const LINKED_PASS_COLUMNS =
-	"id, serial_number, authentication_token, member:members!inner(first_name, last_name, points, program:programs!inner(id, name, background_color, logo_path))" as const;
+const PASS_COLUMNS =
+	"id, serial_number, authentication_token, created_at, member:members!inner(first_name, last_name, points, updated_at, program:programs!inner(id, name, background_color, logo_path, updated_at))" as const;
 
-/** The pass a link points to, or `null` when it does not exist or the token is wrong. */
-export async function findLinkedPass(
+/**
+ * The pass with this serial number, or `null` when it does not exist or the
+ * token is not its secret. Pass links and Apple Wallet's web service calls
+ * both authenticate this way.
+ */
+export async function findPassByToken(
 	supabase: Supabase,
 	provider: WalletProvider,
-	link: z.output<typeof passLinkSchema>,
+	credentials: { serialNumber: string; token: string },
 ) {
 	const { data, error } = await supabase
 		.from("wallet_passes")
-		.select(LINKED_PASS_COLUMNS)
-		.eq("serial_number", link.serialNumber)
+		.select(PASS_COLUMNS)
+		.eq("serial_number", credentials.serialNumber)
 		.eq("provider", provider)
 		.maybeSingle();
 	if (error) {
 		throw new Error(`Could not load the pass: ${error.message}`);
 	}
-	if (!data || !secretsMatch(data.authentication_token, link.token)) {
+	if (!data || !secretsMatch(data.authentication_token, credentials.token)) {
 		return null;
 	}
 	return data;
 }
 
-type LinkedPass = NonNullable<Awaited<ReturnType<typeof findLinkedPass>>>;
+type WalletPass = NonNullable<Awaited<ReturnType<typeof findPassByToken>>>;
 
-function memberName(pass: LinkedPass): string {
+/**
+ * When the pass content last changed: it is built from the member and the
+ * program. Same rule as `list_apple_device_passes` in the database.
+ */
+export function passContentUpdatedAt(pass: WalletPass): Date {
+	return new Date(
+		Math.max(
+			Date.parse(pass.created_at),
+			Date.parse(pass.member.updated_at),
+			Date.parse(pass.member.program.updated_at),
+		),
+	);
+}
+
+function memberName(pass: WalletPass): string {
 	return `${pass.member.first_name} ${pass.member.last_name}`;
 }
 
@@ -116,7 +134,7 @@ const APPLE_PASS_IMAGES = {
 /** Builds and signs the member's `.pkpass` file. */
 export async function createApplePassFile(
 	supabase: Supabase,
-	pass: LinkedPass,
+	pass: WalletPass,
 	config: AppleWalletConfig,
 ): Promise<Uint8Array<ArrayBuffer>> {
 	const { program } = pass.member;
@@ -163,7 +181,7 @@ export async function createApplePassFile(
  */
 export async function createGoogleSaveUrl(
 	supabase: Supabase,
-	pass: LinkedPass,
+	pass: WalletPass,
 	config: GoogleWalletConfig,
 ): Promise<string> {
 	const { program } = pass.member;

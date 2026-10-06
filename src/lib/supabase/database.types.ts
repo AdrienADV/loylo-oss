@@ -5,7 +5,45 @@ export type Database = {
   
   "public": {
           Tables: {
-            "members": {
+            "apple_devices": {
+                  Row: {
+                    "created_at": string,"device_library_identifier": string,"id": string,"push_token": string,"updated_at": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"device_library_identifier": string,"id"?: string,"push_token": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"device_library_identifier"?: string,"id"?: string,"push_token"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"apple_registrations": {
+                  Row: {
+                    "created_at": string,"device_id": string,"pass_id": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"device_id": string,"pass_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"device_id"?: string,"pass_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "apple_registrations_device_id_fkey"
+      columns: ["device_id"]
+isOneToOne: false
+      referencedRelation: "apple_devices"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "apple_registrations_pass_id_fkey"
+      columns: ["pass_id"]
+isOneToOne: false
+      referencedRelation: "wallet_passes"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"members": {
                   Row: {
                     "created_at": string,"email": string,"first_name": string,"id": string,"last_name": string,"points": number,"program_id": string,"updated_at": string
                   }
@@ -39,13 +77,13 @@ isOneToOne: false
                   ]
                 },"wallet_passes": {
                   Row: {
-                    "authentication_token": string,"created_at": string,"id": string,"member_id": string,"provider": Database["public"]['Enums']["wallet_provider"],"serial_number": string,"updated_at": string
+                    "authentication_token": string,"created_at": string,"id": string,"installed_at": string | null,"member_id": string,"provider": Database["public"]['Enums']["wallet_provider"],"serial_number": string,"uninstalled_at": string | null,"updated_at": string
                   }
                   Insert: {
-                    "authentication_token"?: string,"created_at"?: string,"id"?: string,"member_id": string,"provider": Database["public"]['Enums']["wallet_provider"],"serial_number"?: string,"updated_at"?: string
+                    "authentication_token"?: string,"created_at"?: string,"id"?: string,"installed_at"?: string | null,"member_id": string,"provider": Database["public"]['Enums']["wallet_provider"],"serial_number"?: string,"uninstalled_at"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "authentication_token"?: string,"created_at"?: string,"id"?: string,"member_id"?: string,"provider"?: Database["public"]['Enums']["wallet_provider"],"serial_number"?: string,"updated_at"?: string
+                    "authentication_token"?: string,"created_at"?: string,"id"?: string,"installed_at"?: string | null,"member_id"?: string,"provider"?: Database["public"]['Enums']["wallet_provider"],"serial_number"?: string,"uninstalled_at"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -71,6 +109,20 @@ isOneToOne: false
 { Args: { "email": string,"first_name": string,"last_name": string,"program_id": string,"provider": Database["public"]['Enums']["wallet_provider"] }; Returns: {
               "authentication_token": string,"member_created": boolean,"serial_number": string
             }[]
+                           },
+"list_apple_device_passes":
+{ Args: { "device_library_identifier": string,"updated_since"?: string }; Returns: {
+              "last_updated": string,"serial_number": string
+            }[]
+                           },
+"record_wallet_pass_install":
+{ Args: { "installed": boolean,"pass_id": string }; Returns: undefined
+                           },
+"register_apple_device":
+{ Args: { "device_library_identifier": string,"pass_id": string,"push_token": string }; Returns: boolean
+                           },
+"unregister_apple_device":
+{ Args: { "device_library_identifier": string,"pass_id": string }; Returns: undefined
                            }
           }
           Enums: {

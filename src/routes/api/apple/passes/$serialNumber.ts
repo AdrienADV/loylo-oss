@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import {
 	createApplePassFile,
-	findLinkedPass,
+	findPassByToken,
 	parsePassLink,
 } from "#/features/members/wallet-passes.server";
 import { getOptionalAppleWalletConfig } from "#/lib/config.server";
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/api/apple/passes/$serialNumber")({
 				}
 
 				const supabase = createAdminClient();
-				const pass = await findLinkedPass(supabase, "apple", link);
+				const pass = await findPassByToken(supabase, "apple", link);
 				if (!pass) {
 					return textResponse(404, "This link is invalid.");
 				}
