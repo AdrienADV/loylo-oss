@@ -1,7 +1,8 @@
-import { createFileRoute, getRouteApi } from "@tanstack/react-router";
+import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router";
 import { z } from "zod";
 import { PassPreview } from "#/features/programs/components/pass-preview";
 import { FormAlert } from "@/components/form-alert";
+import { buttonVariants } from "@/components/ui/button";
 
 const programRoute = getRouteApi("/_authed/programs/$programId");
 
@@ -33,6 +34,22 @@ function ProgramOverviewPage() {
 			<p className="text-muted-foreground text-sm">
 				New members start with {program.initialPoints} points.
 			</p>
+			<div className="flex flex-wrap gap-2">
+				<Link
+					to="/programs/$programId/members/new"
+					params={{ programId: program.id }}
+					className={buttonVariants()}
+				>
+					Issue a card
+				</Link>
+				<Link
+					to="/programs/$programId/share"
+					params={{ programId: program.id }}
+					className={buttonVariants({ variant: "outline" })}
+				>
+					Share the enrollment link
+				</Link>
+			</div>
 		</div>
 	);
 }

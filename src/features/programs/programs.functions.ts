@@ -1,4 +1,3 @@
-import type { PostgrestError } from "@supabase/supabase-js";
 import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -16,16 +15,12 @@ import {
 	toProgramView,
 	uploadProgramImages,
 } from "#/features/programs/programs.server";
+import { databaseError } from "#/lib/supabase/errors.server";
 
 /**
  * Row Level Security limits every query to the signed-in merchant's programs:
  * another merchant's program ID behaves like a missing one.
  */
-
-function databaseError(action: string, error: PostgrestError): Error {
-	console.error(`Could not ${action}`, error.code, error.message);
-	return new Error(`Could not ${action}. Try again in a moment.`);
-}
 
 /** Program forms are sent as FormData: text fields plus the generated images. */
 function parseProgramForm(data: unknown) {
