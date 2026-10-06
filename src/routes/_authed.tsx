@@ -41,7 +41,12 @@ function AuthedLayout() {
 					Loylo
 				</Link>
 				<div className="flex items-center gap-3 text-sm">
-					<span className="text-muted-foreground">{user.email}</span>
+					<Link
+						to="/account"
+						className="text-muted-foreground hover:text-foreground"
+					>
+						{user.email}
+					</Link>
 					<Button variant="outline" size="sm" onClick={handleSignOut}>
 						Sign out
 					</Button>

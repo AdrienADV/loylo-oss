@@ -35,11 +35,14 @@ export const Route = createFileRoute("/auth/confirm")({
 				);
 				if (query.success) {
 					const { token_hash, type, next } = query.data;
-					const { error } = await createAuthClient().auth.verifyOtp({
-						token_hash,
-						type,
-					});
+					const client = createAuthClient();
+					const { error } = await client.auth.verifyOtp({ token_hash, type });
 					if (!error) {
+						if (type === "email_change") {
+							// The session token still carries the old email: renew it
+							// when the browser has a session.
+							await client.auth.refreshSession();
+						}
 						return redirectTo(next);
 					}
 				}

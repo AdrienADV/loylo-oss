@@ -1,5 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
-import type { AuthError } from "@supabase/supabase-js";
+import { type AuthError, createClient } from "@supabase/supabase-js";
 
 import { getSupabaseAdminConfig } from "#/lib/config.server";
 import { consumeRateLimit, getClientIp } from "#/lib/rate-limit.server";
@@ -22,13 +22,45 @@ export function createAuthClient() {
 	});
 }
 
-export type AuthAction = "sign-in" | "sign-up" | "password-reset";
+export type AuthAction =
+	| "sign-in"
+	| "sign-up"
+	| "password-reset"
+	| "email-change"
+	| "reauthenticate";
 
 /** Slows down credential stuffing: a few attempts per minute and per IP. */
 export async function enforceAuthRateLimit(action: AuthAction): Promise<void> {
 	if (!(await consumeRateLimit("AUTH_RATE_LIMITER", action))) {
 		throw new Error("Too many attempts. Wait a minute and try again.");
 	}
+}
+
+/**
+ * Checks a signed-in user's password before a sensitive change. Signs in on
+ * a throwaway client and ends that session right away, so the session
+ * cookies are left alone. Callers rate-limit it (`reauthenticate`).
+ */
+export async function verifyPassword(
+	email: string,
+	password: string,
+): Promise<boolean> {
+	const { url, secretKey } = getSupabaseAdminConfig();
+	const ip = getClientIp();
+	const client = createClient<Database>(url, secretKey, {
+		auth: { persistSession: false, autoRefreshToken: false },
+		global: { headers: ip ? { "sb-forwarded-for": ip } : {} },
+	});
+
+	const { error } = await client.auth.signInWithPassword({ email, password });
+	if (error) {
+		if (error.code === "invalid_credentials") {
+			return false;
+		}
+		throw new Error(toAuthErrorMessage(error));
+	}
+	await client.auth.signOut({ scope: "local" });
+	return true;
 }
 
 /** Turns a Supabase Auth error into a message that is safe to show. */

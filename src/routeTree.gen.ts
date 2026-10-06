@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as GuestRouteImport } from './routes/_guest'
+import { Route as AuthedAccountRouteImport } from './routes/_authed/account'
 import { Route as AuthedDashboardRouteImport } from './routes/_authed/dashboard'
 import { Route as AuthedResetPasswordRouteImport } from './routes/_authed/reset-password'
 import { Route as GuestForgotPasswordRouteImport } from './routes/_guest/forgot-password'
@@ -48,6 +49,11 @@ const AuthedRoute = AuthedRouteImport.update({
 const GuestRoute = GuestRouteImport.update({
   id: '/_guest',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedAccountRoute = AuthedAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedDashboardRoute = AuthedDashboardRouteImport.update({
   id: '/dashboard',
@@ -183,6 +189,7 @@ const ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierSer
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/account': typeof AuthedAccountRoute
   '/dashboard': typeof AuthedDashboardRoute
   '/reset-password': typeof AuthedResetPasswordRoute
   '/forgot-password': typeof GuestForgotPasswordRoute
@@ -209,6 +216,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/account': typeof AuthedAccountRoute
   '/dashboard': typeof AuthedDashboardRoute
   '/reset-password': typeof AuthedResetPasswordRoute
   '/forgot-password': typeof GuestForgotPasswordRoute
@@ -237,6 +245,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authed': typeof AuthedRouteWithChildren
   '/_guest': typeof GuestRouteWithChildren
+  '/_authed/account': typeof AuthedAccountRoute
   '/_authed/dashboard': typeof AuthedDashboardRoute
   '/_authed/reset-password': typeof AuthedResetPasswordRoute
   '/_guest/forgot-password': typeof GuestForgotPasswordRoute
@@ -265,6 +274,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/account'
     | '/dashboard'
     | '/reset-password'
     | '/forgot-password'
@@ -291,6 +301,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/account'
     | '/dashboard'
     | '/reset-password'
     | '/forgot-password'
@@ -318,6 +329,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authed'
     | '/_guest'
+    | '/_authed/account'
     | '/_authed/dashboard'
     | '/_authed/reset-password'
     | '/_guest/forgot-password'
@@ -380,6 +392,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof GuestRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authed/account': {
+      id: '/_authed/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AuthedAccountRouteImport
+      parentRoute: typeof AuthedRoute
     }
     '/_authed/dashboard': {
       id: '/_authed/dashboard'
@@ -575,6 +594,7 @@ const AuthedProgramsProgramIdRouteWithChildren =
   )
 
 interface AuthedRouteChildren {
+  AuthedAccountRoute: typeof AuthedAccountRoute
   AuthedDashboardRoute: typeof AuthedDashboardRoute
   AuthedResetPasswordRoute: typeof AuthedResetPasswordRoute
   AuthedProgramsProgramIdRoute: typeof AuthedProgramsProgramIdRouteWithChildren
@@ -582,6 +602,7 @@ interface AuthedRouteChildren {
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedAccountRoute: AuthedAccountRoute,
   AuthedDashboardRoute: AuthedDashboardRoute,
   AuthedResetPasswordRoute: AuthedResetPasswordRoute,
   AuthedProgramsProgramIdRoute: AuthedProgramsProgramIdRouteWithChildren,

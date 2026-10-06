@@ -9,14 +9,17 @@ interface FormFieldProps extends ComponentProps<typeof Input> {
 	error?: string;
 }
 
-/** Labelled input with its validation message. */
+/**
+ * Labelled input with its validation message. The ID defaults to
+ * `field-{name}`: pass one when two forms of a page share a field name.
+ */
 export function FormField({
 	name,
 	label,
 	error,
+	id = `field-${name}`,
 	...inputProps
 }: FormFieldProps) {
-	const id = `field-${name}`;
 	return (
 		<Field data-invalid={error ? true : undefined}>
 			<FieldLabel htmlFor={id}>{label}</FieldLabel>
