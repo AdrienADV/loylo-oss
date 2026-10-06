@@ -30,6 +30,7 @@
     "@tanstack/react-start": "1.168.60",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
+    "jose": "^6.2.12",
     "passkit-generator": "^3.6.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
