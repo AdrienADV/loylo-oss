@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiDemoApplePassRouteImport } from './routes/api/demo/apple-pass'
+import { Route as ApiDemoGooglePassRouteImport } from './routes/api/demo/google-pass'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +23,40 @@ const ApiDemoApplePassRoute = ApiDemoApplePassRouteImport.update({
   path: '/api/demo/apple-pass',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDemoGooglePassRoute = ApiDemoGooglePassRouteImport.update({
+  id: '/api/demo/google-pass',
+  path: '/api/demo/google-pass',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/demo/apple-pass': typeof ApiDemoApplePassRoute
+  '/api/demo/google-pass': typeof ApiDemoGooglePassRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/demo/apple-pass': typeof ApiDemoApplePassRoute
+  '/api/demo/google-pass': typeof ApiDemoGooglePassRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/demo/apple-pass': typeof ApiDemoApplePassRoute
+  '/api/demo/google-pass': typeof ApiDemoGooglePassRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/demo/apple-pass'
+  fullPaths: '/' | '/api/demo/apple-pass' | '/api/demo/google-pass'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/demo/apple-pass'
-  id: '__root__' | '/' | '/api/demo/apple-pass'
+  to: '/' | '/api/demo/apple-pass' | '/api/demo/google-pass'
+  id: '__root__' | '/' | '/api/demo/apple-pass' | '/api/demo/google-pass'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiDemoApplePassRoute: typeof ApiDemoApplePassRoute
+  ApiDemoGooglePassRoute: typeof ApiDemoGooglePassRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDemoApplePassRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/demo/google-pass': {
+      id: '/api/demo/google-pass'
+      path: '/api/demo/google-pass'
+      fullPath: '/api/demo/google-pass'
+      preLoaderRoute: typeof ApiDemoGooglePassRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiDemoApplePassRoute: ApiDemoApplePassRoute,
+  ApiDemoGooglePassRoute: ApiDemoGooglePassRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

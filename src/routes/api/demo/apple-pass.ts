@@ -6,6 +6,7 @@ import { getAppleWalletConfig } from "#/lib/config.server";
 import { buildApplePassJson } from "#/lib/wallet/apple/pass-json";
 import { createPkpass } from "#/lib/wallet/apple/pkpass.server";
 import { demoImages } from "./-apple-pass-images";
+import { randomHex } from "./-random-hex";
 
 /**
  * Development-only: returns a signed demo pass to try Apple Wallet on a real
@@ -19,12 +20,6 @@ const demoQuerySchema = z.object({
 	color: hexColorSchema.default("#1d4fd7"),
 	message: z.string().trim().min(1).max(100).nullable().default(null),
 });
-
-function randomHex(bytes: number): string {
-	return Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (byte) =>
-		byte.toString(16).padStart(2, "0"),
-	).join("");
-}
 
 export const Route = createFileRoute("/api/demo/apple-pass")({
 	server: {
