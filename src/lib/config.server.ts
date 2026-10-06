@@ -159,3 +159,14 @@ export function getGoogleWalletConfig() {
 		},
 	};
 }
+
+/** Google Wallet is optional: `null` when the deployment does not configure it. */
+export function getOptionalGoogleWalletConfig() {
+	if (
+		!process.env.GOOGLE_ISSUER_ID &&
+		!process.env.GOOGLE_SERVICE_ACCOUNT_JSON
+	) {
+		return null;
+	}
+	return getGoogleWalletConfig();
+}
