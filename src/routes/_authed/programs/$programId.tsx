@@ -34,7 +34,7 @@ function ProgramLayout() {
 					← All programs
 				</Link>
 				<h1 className="font-semibold text-2xl">{program.name}</h1>
-				<nav className="flex gap-1">
+				<nav className="flex flex-wrap gap-1">
 					<Link
 						to="/programs/$programId"
 						params={{ programId: program.id }}
@@ -51,6 +51,14 @@ function ProgramLayout() {
 						activeProps={{ className: "bg-muted text-foreground" }}
 					>
 						Scan
+					</Link>
+					<Link
+						to="/programs/$programId/notifications"
+						params={{ programId: program.id }}
+						className={tabClass}
+						activeProps={{ className: "bg-muted text-foreground" }}
+					>
+						Messages
 					</Link>
 					<Link
 						to="/programs/$programId/share"
