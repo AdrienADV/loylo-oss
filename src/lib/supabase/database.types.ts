@@ -5,7 +5,26 @@ export type Database = {
   
   "public": {
           Tables: {
-            "programs": {
+            "members": {
+                  Row: {
+                    "created_at": string,"email": string,"first_name": string,"id": string,"last_name": string,"points": number,"program_id": string,"updated_at": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"email": string,"first_name": string,"id"?: string,"last_name": string,"points": number,"program_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"email"?: string,"first_name"?: string,"id"?: string,"last_name"?: string,"points"?: number,"program_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "members_program_id_fkey"
+      columns: ["program_id"]
+isOneToOne: false
+      referencedRelation: "programs"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"programs": {
                   Row: {
                     "background_color": string,"created_at": string,"id": string,"initial_points": number,"logo_path": string | null,"name": string,"owner_id": string,"updated_at": string
                   }
@@ -18,16 +37,44 @@ export type Database = {
                   Relationships: [
                     
                   ]
+                },"wallet_passes": {
+                  Row: {
+                    "authentication_token": string,"created_at": string,"id": string,"member_id": string,"provider": Database["public"]['Enums']["wallet_provider"],"serial_number": string,"updated_at": string
+                  }
+                  Insert: {
+                    "authentication_token"?: string,"created_at"?: string,"id"?: string,"member_id": string,"provider": Database["public"]['Enums']["wallet_provider"],"serial_number"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "authentication_token"?: string,"created_at"?: string,"id"?: string,"member_id"?: string,"provider"?: Database["public"]['Enums']["wallet_provider"],"serial_number"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "wallet_passes_member_id_fkey"
+      columns: ["member_id"]
+isOneToOne: false
+      referencedRelation: "members"
+      referencedColumns: ["id"]
+    }
+                  ]
                 }
           }
           Views: {
             [_ in never]: never
           }
           Functions: {
-            [_ in never]: never
+            "enroll_member":
+{ Args: { "email": string,"first_name": string,"last_name": string,"program_id": string,"provider": Database["public"]['Enums']["wallet_provider"] }; Returns: {
+              "authentication_token": string,"serial_number": string
+            }[]
+                           },
+"issue_wallet_pass":
+{ Args: { "email": string,"first_name": string,"last_name": string,"program_id": string,"provider": Database["public"]['Enums']["wallet_provider"] }; Returns: {
+              "authentication_token": string,"member_created": boolean,"serial_number": string
+            }[]
+                           }
           }
           Enums: {
-            [_ in never]: never
+            "wallet_provider": "apple"|"google"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -143,7 +190,7 @@ export type CompositeTypes<
 export const Constants = {
   "public": {
           Enums: {
-            
+            "wallet_provider": ["apple", "google"]
           }
         }
 } as const
