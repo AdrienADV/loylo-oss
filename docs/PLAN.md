@@ -33,7 +33,7 @@ These refine or override the sections below.
   through `fetch`; local workerd cannot, so pushes only work once deployed.
 - **`WalletProvider` interface** is defined in PR 9, where both wallets are first used together.
 - **Only what is used**: `citext` and the `wallet_provider` enum arrived with PR 7,
-  `wallet_passes.installed_at` / `uninstalled_at` arrive with PR 8, `programs.wallet_message` with
+  `wallet_passes.installed_at` / `uninstalled_at` with PR 8; `programs.wallet_message` arrives with
   PR 10. No `google_class_id` or `google_object_id` column: the class ID is
   `{GOOGLE_ISSUER_ID}.{program id}`, the object ID `{GOOGLE_ISSUER_ID}.{wallet pass id}`.
 - **Explicit grants**: Supabase is moving the Data API to opt-in grants, so every migration
@@ -92,7 +92,7 @@ These refine or override the sections below.
 
 | Path | Content |
 | --- | --- |
-| `src/lib/config.server.ts` | Env validation with Zod, read per request (`getSupabaseConfig`, `getAppleWalletConfig`, `getApplePushConfig`, `getGoogleWalletConfig`, `getOptionalGoogleWalletConfig`, …) |
+| `src/lib/config.server.ts` | Env validation with Zod, read per request (`getSupabaseConfig`, `getSupabaseAdminConfig`, `getAppleWalletConfig`, `getOptionalAppleWalletConfig`, `getApplePushConfig`, `getGoogleWalletConfig`, `getOptionalGoogleWalletConfig`) |
 | `src/lib/wallet/apple/` | `pass-json.ts` (pure builder), `pkpass.server.ts` (signing), `apns.server.ts` (pushes), `pkpass.server.test.ts` (the only test) |
 | `src/lib/wallet/google/` | `objects.ts` (class / object builders), `client.server.ts` (API client, save URL), `callback.server.ts` (callback verification) |
 | `src/lib/supabase/` | clients, `cookies.server.ts`, generated `database.types.ts` |
@@ -149,7 +149,7 @@ generate shadcn components from the shadcn GitHub sources with the `base-luma` s
 - **Cloudflare Workers Builds fails on every PR and on `main`**. The cause is only visible in
   the Cloudflare dashboard build logs; share a log to fix it. The Worker was renamed to
   `loylo-oss` to match the Cloudflare project; `wrangler.jsonc` also has the `AUTH_RATE_LIMITER`
-  binding.
+  and `ENROLLMENT_RATE_LIMITER` bindings. Nothing has been deployed yet.
 - **Hosted Supabase setup** (owner): copy `supabase/templates/*.html` into Authentication >
   Email Templates, set the Site URL, enable IP address forwarding (Authentication > Rate Limits).
 - **Google class sync** needs an HTTPS logo URL (it fails with the local `http` Supabase URL), so
@@ -275,7 +275,7 @@ These findings drive the design principles below.
     (email, points, color).
 14. **Global `client` table keyed by email**, shared across merchants. → Members scoped per program.
 15. **Apple web service incomplete.** `passesUpdatedSince` ignored, `lastUpdated` always "now".
-    → `updated_at` on passes drives the spec.
+    → A pass content version (latest of the pass, member and program timestamps) drives the spec.
 16. **Secrets committed in `loylo-api`**: Apple signer key / cert, APNs `.p8` key, RevenueCat
     webhook token hardcoded. → Every secret from env vars; the leaked keys must be revoked
     (see Prerequisites).
@@ -302,7 +302,7 @@ These findings drive the design principles below.
 | Need | Plan |
 | --- | --- |
 | Image resize / icons | Browser canvas before upload (`icon.png`, `icon@2x.png`, `logo.png`). `sharp` cannot run on Workers. |
-| Pass signing (PKCS#7) | `passkit-generator` (`node-forge`, pure JS) with certs from env. To prove in PR 1. |
+| Pass signing (PKCS#7) | `passkit-generator` (`node-forge`, pure JS) with certs from env. Proven in PR 1 (test in `workerd`). |
 | Google Wallet auth + save JWT | `jose` (WebCrypto) instead of `google-auth-library` / `jsonwebtoken`. |
 | Google callback verification | WebCrypto ECDSA P-256 instead of Node `crypto`. |
 | APNs push (HTTP/2 required) | Deployed Workers reach APNs through `fetch`; local workerd cannot (cloudflare/workerd#4841), so pushes only work once deployed. No Edge Function needed. |
@@ -365,35 +365,46 @@ data and streamed directly.
 
 ## Pages (file routes)
 
-Public: `/` (landing), `/login`, `/signup`, `/forgot-password`, `/reset-password`,
-`/auth/confirm` (server route), `/join/$programId` (enrollment → Add to Apple Wallet /
-Save to Google Wallet).
+The PR column says which PR ships each page; pages up to PR 8 exist.
+
+| Route | Purpose | PR |
+| --- | --- | --- |
+| `/` | Landing (minimal for now, finished in PR 11) | 5 / 11 |
+| `/login`, `/signup`, `/forgot-password`, `/reset-password` | Merchant auth | 5 |
+| `/auth/confirm` (server route) | Auth email links | 5 |
+| `/join/$programId` | Public enrollment → Add to Apple Wallet / Add to Google Wallet | 7 |
 
 Merchant (`_authed` layout):
 
-| Route | Purpose |
-| --- | --- |
-| `/dashboard` | List of programs, "create" CTA |
-| `/programs/new` | Create a program with live pass preview |
-| `/programs/$programId` | Members list (search, install state, pagination) |
-| `/programs/$programId/members/new` | Issue a pass manually |
-| `/programs/$programId/members/$memberId` | Balance, add / redeem points, history |
-| `/programs/$programId/scan` | Camera QR scan (`BarcodeDetector` with a JS fallback) |
-| `/programs/$programId/share` | Enrollment link + QR code |
-| `/programs/$programId/notifications` | Compose, preview, quota, history |
-| `/programs/$programId/settings` | Edit / delete the program |
-| `/account` | Email, password, delete account |
+| Route | Purpose | PR |
+| --- | --- | --- |
+| `/dashboard` | List of programs, "create" CTA | 6 |
+| `/programs/new` | Create a program with live pass preview | 6 |
+| `/programs/$programId` | Today: pass preview, "Issue a card" and share links. PR 9: members list (search, install state, pagination) | 6 / 9 |
+| `/programs/$programId/members/new` | Issue a pass manually (QR code of the pass link) | 7 |
+| `/programs/$programId/members/$memberId` | Balance, add / redeem points, history | 9 |
+| `/programs/$programId/scan` | Camera QR scan (`BarcodeDetector` with a JS fallback) | 9 |
+| `/programs/$programId/share` | Enrollment link + QR code | 7 |
+| `/programs/$programId/notifications` | Compose, preview, quota, history | 10 |
+| `/programs/$programId/settings` | Edit / delete the program | 6 |
+| `/account` | Email, password, delete account | 11 |
 
 ## Server functions and routes
 
+Done (PRs 5–7):
+
 - `auth`: `signUp`, `signIn`, `signOut`, `requestPasswordReset`, `updatePassword`, `getCurrentUser`.
 - `programs`: `listPrograms`, `getProgram`, `createProgram`, `updateProgram`, `deleteProgram`.
-- `members`: `listMembers`, `getMember`, `findMemberBySerial`, `issuePass`, `adjustPoints`, `listTransactions`.
-- `notifications`: `getNotificationQuota`, `sendNotification`, `listNotifications`.
-- `account`: `deleteAccount`.
+- `members`: `issuePass`, `listAvailableWallets`.
 - `enrollment` (public): `getPublicProgram`, `enroll`.
 
-Server routes (external callers):
+To do:
+
+- `members` (PR 9): `listMembers`, `getMember`, `findMemberBySerial`, `adjustPoints`, `listTransactions`.
+- `notifications` (PR 10): `getNotificationQuota`, `sendNotification`, `listNotifications`.
+- `account` (PR 11): `deleteAccount`.
+
+Server routes (external callers), all done (PRs 7–8):
 
 - Apple PassKit Web Service, `webServiceURL = {APP_URL}/api/apple`:
   - `POST | DELETE /api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber`
