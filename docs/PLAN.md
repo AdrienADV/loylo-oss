@@ -18,7 +18,8 @@ reference only.
 | UI language | English only |
 | Marketing limits | 1 message / 24 h per program, monthly cap from an env var |
 | Data | Fresh start, no import from Loylo |
-| Logo background removal | Dropped (assumed, not explicitly confirmed) |
+| Logo background removal | Dropped |
+| Tests | Only the `.pkpass` validation test (run in the Workers runtime) |
 
 ## MVP scope
 
@@ -60,7 +61,7 @@ These drive the design principles below.
 12. **`is_activated` flag** flipped by any single device unregistering. → Derived from registrations / callbacks.
 13. **Overly strict validation.** Names of at least 3 characters ("Li" rejected), forced
     capitalization ("McDonald" → "Mcdonald"). → Permissive names, strict on what matters.
-14. **No tests.** → pgTAP for RLS and SQL functions, Vitest for pure logic, Playwright for the main flow.
+14. **No tests.** → Static checks in CI, plus one test that validates generated `.pkpass` files.
 
 ## Design principles
 
@@ -168,13 +169,15 @@ Google callback `/api/google/callback`.
 
 ## Milestones
 
-0. **Spikes** (throwaway): sign a `.pkpass` on Workers; APNs push from Workers vs Edge Function;
+0. **Wallet spikes**: sign a `.pkpass` on Workers, covered by the only test of the project
+   (Vitest with `@cloudflare/vitest-pool-workers`, so it runs in `workerd`: manifest hashes,
+   PKCS#7 signature, required `pass.json` fields); APNs push from Workers vs Edge Function;
    Google save JWT with `jose`. Outcome decides the wallet adapters.
-1. **Foundations**: CI (Biome, `tsc`, Vitest, `supabase db lint`, types drift check), env config,
-   schema + RLS + pgTAP tests, auth pages, `authMiddleware`, `_authed` layout.
+1. **Foundations**: CI (Biome, `tsc`, `.pkpass` test, `supabase db lint`, types drift check),
+   env config, schema + RLS, auth pages, `authMiddleware`, `_authed` layout.
 2. **Programs**: CRUD, browser image processing, pass preview, Google class creation.
 3. **Passes**: enrollment page, manual issue, Apple signing + download + web service, Google save
    link + callback.
 4. **Points**: members list, scan, `adjust_points`, history, wallet sync.
 5. **Marketing notifications**: `create_notification`, Apple `changeMessage` + push, Google `addMessage`.
-6. **Polish**: account deletion, landing page, Playwright happy path, self-hosting docs.
+6. **Polish**: account deletion, landing page, self-hosting docs.
