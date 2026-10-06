@@ -13,7 +13,8 @@
     "format": "biome format",
     "lint": "biome lint",
     "check": "biome check",
-    "deploy": "bun run build && wrangler deploy"
+    "deploy": "bun run build && wrangler deploy",
+    "intent": "node node_modules/@tanstack/intent/dist/cli.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
@@ -29,6 +30,7 @@
     "@biomejs/biome": "2.4.5",
     "@cloudflare/vite-plugin": "^1.26.0",
     "@tanstack/devtools-vite": "0.8.5",
+    "@tanstack/intent": "^0.5.4",
     "@tanstack/router-cli": "^1.132.0",
     "@types/node": "^22.10.2",
     "@types/react": "^19.2.0",
@@ -44,6 +46,12 @@
       "lightningcss",
       "sharp",
       "workerd"
+    ]
+  },
+  "intent": {
+    "skills": [
+      "@tanstack/react-start",
+      "@tanstack/start-*"
     ]
   }
 }
