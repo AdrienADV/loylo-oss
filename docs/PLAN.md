@@ -1,6 +1,6 @@
 # Loylo OSS — MVP plan
 
-Status: **in progress**: PRs 1–10 merged, next is PR 11 (`feat/account`). See [Status and handoff](#status-and-handoff).
+Status: **MVP complete**: PRs 1–11 merged. See [Status and handoff](#status-and-handoff) and [After the MVP](#after-the-mvp).
 
 This document is the shared context for building Loylo OSS: what we build, what we decided,
 why, and in which order. Read it before starting any PR.
@@ -21,7 +21,7 @@ Read this section first when picking up the work in a new session.
 | 8 | `feat/wallet-web-services` | #10 | merged |
 | 9 | `feat/points` | #12 | merged |
 | 10 | `feat/marketing-notifications` | #14 | merged |
-| 11 | `feat/account` | — | **next** |
+| 11 | `feat/account` | #15 | merged |
 
 How the owner works: one PR at a time; the owner merges it (even while the Cloudflare build
 is red, see below) and says when to start the next one. Do not start the next PR without the go.
@@ -133,6 +133,22 @@ These refine or override the sections below.
 - **No delivery counts**: the planned `notifications.delivered_count` / `failed_count` were left
   out: a push accepted by APNs or a Google message reaches devices later, so the counts would not
   mean "delivered". The page shows the send result and offers a retry instead.
+- **Sensitive account changes ask for the password**: `verifyPassword` signs in on a throwaway
+  client (no cookies) and signs that session out, rate-limited as `reauthenticate`. A password
+  change then signs out the other devices (`signOut({ scope: "others" })`). Deleting the account
+  removes the whole `{owner}/` image folder (`removeOwnerImages`, leftovers included), signs out
+  everywhere, then calls `auth.admin.deleteUser` (secret key: the only way to delete a user); the
+  database cascades the rest.
+- **Revoked sessions end with their access token**: `authMiddleware` verifies tokens locally
+  (`getClaims`), so a revoked session keeps working until its access token expires
+  (`jwt_expiry`, one hour). The account page says "within the hour".
+- **Email change** is Supabase's secure email change: a link to each address
+  (`email_change.html`, `next=/account?emailChange=confirmed`); `/auth/confirm` refreshes the
+  session after each, so the header shows the new email. An address used by another account gets
+  the same answer as a free one.
+- **Apple devices without passes are forgotten** by a statement trigger on `apple_registrations`
+  (`private.forget_unused_apple_devices`): unregistering, deleting a program and deleting an
+  account all go through it. `unregister_apple_device` no longer deletes devices itself.
 
 ### Code map
 
@@ -147,11 +163,12 @@ These refine or override the sections below.
 | `src/features/programs/` | schemas (`PROGRAM_IMAGES`), server helpers, server functions, `ProgramForm`, `PassPreview`, `ProgramCard` |
 | `src/features/members/` | member / wallet / points schemas, server functions (`issuePass`, members list, member, scan lookup, points, history), `members.server.ts` (views, install state), `wallet-passes.server.ts` (pass links, `.pkpass` build, Google save link), `MemberPassForm`, `MemberList`, `PointsForm`, `QrScanner`, `WalletStateBadge` |
 | `src/features/wallet-sync/` | `WalletSync` interface and `combineSyncResults` (`wallet-sync.ts`), Apple and Google implementations, `syncMemberWallets`, `syncProgramWallets`, `sendProgramMessageToWallets` |
+| `src/features/account/` | schemas and server functions (`getAccount`, `requestEmailChange`, `changePassword`, `deleteAccount`); `verifyPassword` is in `auth.server.ts`, `removeOwnerImages` in `programs.server.ts` |
 | `src/features/notifications/` | message schema, quota view (`toNotificationQuota`), server functions (quota, history, send), `NotificationForm`, `NotificationPreview` |
 | `src/features/enrollment/` | public server functions `getPublicProgram`, `enroll` |
 | `src/lib/` (other) | `rate-limit.server.ts`, `supabase/errors.server.ts` (`databaseError`), `app-origin.ts` (isomorphic origin), `http.ts` |
 | `src/components/` | `qr-code.tsx` (SVG, `uqr`), `copy-button.tsx`, `formatted-date.tsx`, shadcn `ui/` |
-| `src/routes/_guest*`, `src/routes/_authed*` | signed-out and signed-in layouts and pages (program overview with members, member, scan, messages, share, issue a card, settings); `src/routes/auth/confirm.ts` |
+| `src/routes/_guest*`, `src/routes/_authed*` | signed-out and signed-in layouts and pages (program overview with members, member, scan, messages, share, issue a card, settings, account); `src/routes/auth/confirm.ts` |
 | `src/routes/join/$programId.tsx` | public enrollment page |
 | `src/routes/api/{apple,google}/passes/$serialNumber.ts` | pass links |
 | `src/features/wallet-services/`, `src/routes/api/apple/v1/`, `src/routes/api/google/callback.ts` | Apple PassKit Web Service, Google save / delete callback |
@@ -187,7 +204,8 @@ Each PR so far was verified end to end before opening it. The environment used:
    1000+ devices) were checked with Bun scripts that import the `wallet-sync.server.ts` functions
    and mock `fetch` for Apple and Google only; Google needs an HTTPS logo URL, so pass them a
    Supabase client created with an `https://` URL (it only builds public URLs). Backdate
-   `notifications.created_at` with `psql` to test the sending rules.
+   `notifications.created_at` with `psql` to test the sending rules. Email links can be read
+   from Mailpit's API (`/api/v1/messages`, `/api/v1/message/{id}`).
 6. Before pushing: `bunx tsc --noEmit`, Biome on the changed files, `bun run build` (and check that
    no server code ends up in `dist/client`), `bun run test`.
 
@@ -208,15 +226,17 @@ generate shadcn components from the shadcn GitHub sources with the `base-luma` s
   the Cloudflare dashboard build logs; share a log to fix it. The Worker was renamed to
   `loylo-oss` to match the Cloudflare project; `wrangler.jsonc` also has the `AUTH_RATE_LIMITER`
   and `ENROLLMENT_RATE_LIMITER` bindings. Nothing has been deployed yet.
-- **Hosted Supabase setup** (owner): copy `supabase/templates/*.html` into Authentication >
-  Email Templates, set the Site URL, enable IP address forwarding (Authentication > Rate Limits).
+- **Deployment setup**: the README's self-hosting guide lists the Supabase, Cloudflare, Apple and
+  Google steps (email templates, Site URL, IP forwarding, SMTP, secrets).
 - **Google class sync** needs an HTTPS logo URL (it fails with the local `http` Supabase URL), so
   locally the Google pass link answers 503.
 - **Forms submitted before hydration** fall back to a native `GET`, which puts the fields in the
   URL (the password on `/login`, name and email on `/join`). Consider `method="post"` or disabling
   submit buttons until hydration.
 - Biome reports formatting issues in starter files (`biome.json` schema version, `button.tsx`,
-  `router.tsx`, `__root.tsx`); they predate the project work and were left untouched.
+  `router.tsx`, `__root.tsx`); they predate the project work and were left as they are (PR 11
+  only set the site title in `__root.tsx`).
+- `src/lib/supabase/client.ts` (browser Supabase client) is not used anywhere.
 - **Program-wide pushes run inside the request** (sending a message, saving a program): one APNs
   request per device, 6 at a time. Each counts against the Worker's subrequest limit, so a large
   program needs a queue (Cloudflare Queues) to reach every device.
@@ -231,19 +251,17 @@ generate shadcn components from the shadcn GitHub sources with the `base-luma` s
   developer settings), real Apple certificates and a Google issuer account; APNs only works from a
   deployed Worker.
 
-### Notes for PR 11 (`feat/account`)
+### After the MVP
 
-- Account page: change email (confirmation email, `supabase/templates`), change password
-  (`updatePassword` exists), delete the account.
-- Deleting: Supabase forbids deleting storage objects in SQL, so remove the user's images
-  (`program-assets/{user id}/...`) through the Storage API first; deleting the user then cascades
-  to programs, members, passes, the points ledger and notifications. Use the admin client
-  (`auth.admin.deleteUser`) after checking the session, and sign the user out: deleting a user
-  does not revoke their access tokens. Google classes cannot be deleted; Apple devices drop their
-  registrations with the passes (cascade) and unregister later.
-- Landing page (`/`) and a README self-hosting guide: every variable of `.env.example` (including
-  `NOTIFICATIONS_MONTHLY_CAP`), the hosted Supabase setup listed in the known issues, the
-  Cloudflare rate limiter bindings, Apple and Google credentials.
+Candidates for the next PRs, roughly by value:
+
+- Find why Cloudflare Workers Builds fails, then deploy and test with real Apple and Google
+  accounts (the Google message flow above, APNs pushes, Google callbacks).
+- Move program-wide pushes to Cloudflare Queues for large programs.
+- When a program or an account is deleted, expire its Google Wallet objects (classes cannot be
+  deleted), so the cards leave customers' wallets.
+- Submit forms with `method="post"` or disable them until hydration (known issue above).
+- Check sessions in `authMiddleware` (or lower `jwt_expiry`) if revoked sessions must stop sooner.
 
 ## Context
 
@@ -438,11 +456,11 @@ data and streamed directly.
 
 ## Pages (file routes)
 
-The PR column says which PR ships each page; pages up to PR 10 exist.
+The PR column says which PR ships each page; all of them exist.
 
 | Route | Purpose | PR |
 | --- | --- | --- |
-| `/` | Landing (minimal for now, finished in PR 11) | 5 / 11 |
+| `/` | Landing page | 5 / 11 |
 | `/login`, `/signup`, `/forgot-password`, `/reset-password` | Merchant auth | 5 |
 | `/auth/confirm` (server route) | Auth email links | 5 |
 | `/join/$programId` | Public enrollment → Add to Apple Wallet / Add to Google Wallet | 7 |
@@ -464,7 +482,7 @@ Merchant (`_authed` layout):
 
 ## Server functions and routes
 
-Done (PRs 5–10):
+Done (PRs 5–11):
 
 - `auth`: `signUp`, `signIn`, `signOut`, `requestPasswordReset`, `updatePassword`, `getCurrentUser`.
 - `programs`: `listPrograms`, `getProgram`, `createProgram`, `updateProgram`, `deleteProgram`,
@@ -473,10 +491,7 @@ Done (PRs 5–10):
   `adjustPoints`, `retryWalletSync`, `listTransactions`.
 - `enrollment` (public): `getPublicProgram`, `enroll`.
 - `notifications`: `getNotificationQuota`, `sendNotification`, `listNotifications`.
-
-To do:
-
-- `account` (PR 11): `deleteAccount`.
+- `account`: `getAccount`, `requestEmailChange`, `changePassword`, `deleteAccount`.
 
 Server routes (external callers), all done (PRs 7–8):
 
@@ -533,7 +548,7 @@ PRs 1–3 have no database dependency and prove the risky parts on Workers first
 | 8 | `feat/wallet-web-services` | `apple_devices` + `apple_registrations`, Apple PassKit Web Service routes, Google callback route, install state. | `create_apple_registrations` |
 | 9 | `feat/points` | `point_transactions` + `adjust_points()`, members list, member page (balance, add / redeem, history), scan page, `WalletProvider` interface and wallet sync after each change. | `create_point_transactions` |
 | 10 | `feat/marketing-notifications` | `programs.wallet_message`, `notifications` + `create_notification()`, compose page with preview and history, Apple `changeMessage` + push, Google `addMessage`. | `create_notifications` |
-| 11 | `feat/account` | Account page (email, password, delete account), landing page, README for self-hosting. | — |
+| 11 | `feat/account` | Account page (email, password, delete account), landing page, README for self-hosting. | `forget_unused_apple_devices` |
 
 ### Details and done criteria
 
