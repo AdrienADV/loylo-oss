@@ -1,6 +1,6 @@
 # Loylo OSS — MVP plan
 
-Status: **in progress**: PRs 1–6 merged, next is PR 7 (`feat/enrollment`). See [Status and handoff](#status-and-handoff).
+Status: **in progress**: PRs 1–7 merged, next is PR 8 (`feat/wallet-web-services`). See [Status and handoff](#status-and-handoff).
 
 This document is the shared context for building Loylo OSS: what we build, what we decided,
 why, and in which order. Read it before starting any PR.
@@ -17,8 +17,9 @@ Read this section first when picking up the work in a new session.
 | 4 | `feat/database-foundations` | #5 | merged |
 | 5 | `feat/auth` | #6 | merged |
 | 6 | `feat/programs` | #7 | merged |
-| 7 | `feat/enrollment` | — | **next** |
-| 8–11 | see [Pull requests](#pull-requests) | — | to do |
+| 7 | `feat/enrollment` | #9 | merged |
+| 8 | `feat/wallet-web-services` | — | **next** |
+| 9–11 | see [Pull requests](#pull-requests) | — | to do |
 
 How the owner works: one PR at a time; the owner merges it (even while the Cloudflare build
 is red, see below) and says when to start the next one. Do not start the next PR without the go.
@@ -30,8 +31,10 @@ These refine or override the sections below.
 - **APNs runs in the Worker** (no Edge Function): deployed Workers reach APNs over HTTP/2
   through `fetch`; local workerd cannot, so pushes only work once deployed.
 - **`WalletProvider` interface** is defined in PR 9, where both wallets are first used together.
-- **Only what is used**: `citext` and the `wallet_provider` enum arrive with PR 7, `programs.wallet_message`
-  with PR 10. No `google_class_id` column: the class ID is `{GOOGLE_ISSUER_ID}.{program id}`.
+- **Only what is used**: `citext` and the `wallet_provider` enum arrived with PR 7,
+  `wallet_passes.installed_at` / `uninstalled_at` arrive with PR 8, `programs.wallet_message` with
+  PR 10. No `google_class_id` or `google_object_id` column: the class ID is
+  `{GOOGLE_ISSUER_ID}.{program id}`, the object ID `{GOOGLE_ISSUER_ID}.{wallet pass id}`.
 - **Explicit grants**: Supabase is moving the Data API to opt-in grants, so every migration
   grants table and column privileges itself (nothing for `anon`), next to RLS.
 - **Internal SQL helpers** live in the unexposed `private` schema (`private.set_updated_at()`).
@@ -44,16 +47,32 @@ These refine or override the sections below.
 - **Auth hardening**: `authMiddleware` (`getClaims()`) on every private server function,
   TanStack Start's built-in `createCsrfMiddleware` for server functions (`src/start.ts`), a Workers
   rate limiter `AUTH_RATE_LIMITER` (10/min per IP and action), no account enumeration, in-app
-  redirects only.
+  redirects only. Public flows use `ENROLLMENT_RATE_LIMITER` (20/min per IP and action:
+  enrollments, pass links); helpers in `src/lib/rate-limit.server.ts`.
 - **Auth emails** use `token_hash` links to `/auth/confirm` (templates in `supabase/templates`).
 - **Program images** are generated in the browser (`program-images.ts`) and checked on the server
   (PNG signature, exact dimensions, ≤ 1 MB). Each logo version has its own folder
   `{owner}/{program}/{version}` in `program-assets`: `apple-icon.png`, `apple-icon@2x.png`,
   `apple-logo.png`, `apple-logo@2x.png`, `google-logo.png`.
-- **Wallets are optional**: `getOptionalGoogleWalletConfig()` returns `null` when Google is not
-  configured (sync skipped). Add the same for Apple when PR 7 needs it.
+- **Wallets are optional**: `getOptionalAppleWalletConfig()` / `getOptionalGoogleWalletConfig()`
+  return `null` when a wallet is not configured (a partial configuration still fails);
+  `getAvailableWallets()` drives which buttons the pages show.
 - **Google class sync never fails a request**: it is logged and reported in the UI; saving again
   retries. Google classes cannot be deleted through the API.
+- **The database generates pass secrets and welcome points**: `serial_number` (128 random bits,
+  the QR code content) and `authentication_token` (256 random bits) come from column defaults,
+  `members.points` from a trigger; none of them is insertable through the Data API.
+- **Every pass has an `authentication_token`**, Apple or Google: it is Apple's
+  `authenticationToken` and the secret of the pass link
+  `/api/{apple|google}/passes/{serial}?token={token}`. The Apple link returns the `.pkpass`; the
+  Google link syncs the class and the object, then redirects to the save link. Passes are rebuilt
+  from the database on every download, so opening a link again also retries after a failure.
+- **Public enrollment refuses an email already enrolled** (no email verification, so it would
+  hand that member's pass and points to anyone typing the email). `enroll_member` (service role
+  only) creates new members; reinstalls and wallet changes go through the merchant's manual issue
+  (`issue_wallet_pass`, RLS), which reuses the member and keeps their points.
+- **`citext` in SQL functions**: under `search_path = ''`, `=` on `citext` is case-sensitive;
+  compare with `operator(extensions.=)`.
 
 ### Code map
 
@@ -66,12 +85,18 @@ These refine or override the sections below.
 | `src/lib/forms.ts`, `src/components/form-*.tsx` | `useSchemaForm` (Zod → field errors), `FormField`, `FormAlert` |
 | `src/features/auth/` | schemas, server helpers, `authMiddleware`, server functions, `AuthCard` |
 | `src/features/programs/` | schemas (`PROGRAM_IMAGES`), server helpers, server functions, `ProgramForm`, `PassPreview`, `ProgramCard` |
-| `src/routes/_guest*`, `src/routes/_authed*` | signed-out and signed-in layouts and pages; `src/routes/auth/confirm.ts` |
-| `src/routes/api/demo/` | development-only demo routes (Apple pass, Google pass), to replace in PR 7 |
+| `src/features/members/` | shared member / wallet schemas, `issuePass`, `wallet-passes.server.ts` (pass links, `.pkpass` build, Google save link), `MemberPassForm` |
+| `src/features/enrollment/` | public server functions `getPublicProgram`, `enroll` |
+| `src/lib/` (other) | `rate-limit.server.ts`, `supabase/errors.server.ts` (`databaseError`), `app-origin.ts` (isomorphic origin), `http.ts` |
+| `src/components/` | `qr-code.tsx` (SVG, `uqr`), `copy-button.tsx`, shadcn `ui/` |
+| `src/routes/_guest*`, `src/routes/_authed*` | signed-out and signed-in layouts and pages (program overview, share, issue a card, settings); `src/routes/auth/confirm.ts` |
+| `src/routes/join/$programId.tsx` | public enrollment page |
+| `src/routes/api/{apple,google}/passes/$serialNumber.ts` | pass links |
 
 Code conventions: server functions use `.validator()` (`inputValidator()` is deprecated in this
 TanStack Start version); a foreign or unknown ID throws `notFound()`; errors shown to users are
-thrown as `Error` with a safe message and details are logged.
+thrown as `Error` with a safe message and details are logged. `useSchemaForm` includes the clicked
+submit button's `name` / `value` (one button per wallet).
 
 ### Local development and verification
 
@@ -79,13 +104,16 @@ Each PR so far was verified end to end before opening it. The environment used:
 
 1. Docker: start the daemon if needed (`dockerd &`).
 2. Supabase: `bunx supabase start -x realtime,imgproxy,studio,edge-runtime,logflare,vector,supavisor`
-   (keeps db, auth, storage, REST, Mailpit). If the `realtime` image cannot be pulled from ECR or
-   GHCR, pull `supabase/realtime:<tag>` from Docker Hub and tag it as
-   `public.ecr.aws/supabase/realtime:<tag>`.
+   (keeps db, auth, storage, REST, Mailpit). If an image cannot be pulled from ECR or GHCR, pull
+   it from Docker Hub and tag it as `public.ecr.aws/supabase/<name>:<tag>`: `supabase/realtime`,
+   and `postgrest/postgrest` for PostgREST. Docker Hub may answer 429: wait and retry.
 3. `bunx supabase db reset` applies the migrations, `bun run gen:types` regenerates the types,
    `bunx supabase db advisors --local` checks security.
 4. `.env.local` (git-ignored) from `bunx supabase status -o json`: `VITE_SUPABASE_URL`,
    `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, plus wallet variables when needed.
+   Without Apple credentials, generate a stand-in WWDR authority and a Pass Type ID certificate
+   with openssl: passes are then signed for real and `openssl cms -verify` checks them. A fake
+   Google service account exercises the Google error paths.
 5. `bun run dev`, then drive the app with Playwright and Chromium (`/opt/pw-browsers`), with
    scripts kept outside the repo. Mailpit (`http://127.0.0.1:54324`) receives auth emails; check
    rows and RLS with `psql postgresql://postgres:postgres@127.0.0.1:54322/postgres`.
@@ -94,9 +122,11 @@ Each PR so far was verified end to end before opening it. The environment used:
 
 Gotchas: the auth rate limiter blocks sign-in after 10 attempts per minute (space out scripted
 sign-ins); TanStack Router updates the URL before the next page renders (wait for content, not
-the URL); `supabase.com`, `developers.google.com` and the shadcn registry may be unreachable from
-the agent environment: read Supabase docs from `raw.githubusercontent.com/supabase/supabase`,
-and generate shadcn components from the shadcn GitHub sources with the `base-luma` style
+the URL); wait for `networkidle` before clicking, or forms submit natively before hydration; the
+TanStack devtools panel adds labelled elements, so select inputs by their `#field-*` id;
+`supabase.com`, `developers.google.com` and the shadcn registry may be unreachable from the
+agent environment: read Supabase docs from `raw.githubusercontent.com/supabase/supabase`, and
+generate shadcn components from the shadcn GitHub sources with the `base-luma` style
 (`apps/v4/registry/styles/style-luma.css`).
 
 ### Known issues and open items
@@ -107,22 +137,30 @@ and generate shadcn components from the shadcn GitHub sources with the `base-lum
   binding.
 - **Hosted Supabase setup** (owner): copy `supabase/templates/*.html` into Authentication >
   Email Templates, set the Site URL, enable IP address forwarding (Authentication > Rate Limits).
-- **Google class sync** needs an HTTPS logo URL (it fails with the local `http` Supabase URL).
+- **Google class sync** needs an HTTPS logo URL (it fails with the local `http` Supabase URL), so
+  locally the Google pass link answers 503.
+- **Forms submitted before hydration** fall back to a native `GET`, which puts the fields in the
+  URL (the password on `/login`, name and email on `/join`). Consider `method="post"` or disabling
+  submit buttons until hydration.
 - Biome reports formatting issues in starter files (`biome.json` schema version, `button.tsx`,
   `router.tsx`, `__root.tsx`); they predate the project work and were left untouched.
-- Program changes (name, color, logo) are not pushed to installed passes yet (needs PR 8).
+- Program changes (name, color, logo) are not pushed to installed passes yet (needs PR 8). Google
+  objects are refreshed whenever their pass link is opened.
 
-### Notes for PR 7 (`feat/enrollment`)
+### Notes for PR 8 (`feat/wallet-web-services`)
 
-- Migration `create_members_and_wallet_passes`: `citext`, `wallet_provider` enum, `members` and
-  `wallet_passes` as described in [Database](#database-supabase-public-schema-rls-on-every-table),
-  with explicit grants, RLS through the program's `owner_id`, and FK indexes.
-- Public pages (`/join/$programId`, pass download, Google save link) have no user: use
-  `createAdminClient()` with strict validation, and rate-limit enrollment.
-- Generate serial numbers and Apple authentication tokens with cryptographic randomness.
-- Build Apple passes from the program images: `apple-icon*.png` → `icon*.png`,
-  `apple-logo*.png` → `logo*.png`. Before creating a Google object, sync the class (it may be missing).
-- Replace the demo routes in `src/routes/api/demo/`.
+- Migration `create_apple_registrations`: `apple_devices`, `apple_registrations`, and
+  `wallet_passes.installed_at` / `uninstalled_at` (deferred from PR 7), with explicit grants and
+  RLS on with no policies for the `apple_*` tables.
+- Apple web service: requests carry `Authorization: ApplePass {authentication_token}`; look the
+  pass up by serial number and compare the token in constant time, as `findLinkedPass` does.
+  `GET /v1/passes/...` can reuse `createApplePassFile`; `Last-Modified` and `passesUpdatedSince`
+  come from `wallet_passes.updated_at`. Passes issued since PR 7 already carry
+  `webServiceURL = {APP_URL}/api/apple`.
+- Google callback: the object ID is `{GOOGLE_ISSUER_ID}.{wallet pass id}`: check the issuer, then
+  read the pass ID from the suffix.
+- These endpoints have no user: use `createAdminClient()` with strict validation, and rate-limit
+  them where it makes sense.
 
 ## Context
 
@@ -271,13 +309,14 @@ auth.users ─1..n─ programs ─1..n─ members ─1..n─ wallet_passes ─n.
   text check (char_length <= 100)` is added by PR 10. The Google class ID is deterministic
   (`{GOOGLE_ISSUER_ID}.{program id}`), so it is not stored.
 - **`members`**: `id uuid`, `program_id → programs on delete cascade`, `email citext`,
-  `first_name text`, `last_name text`, `points int not null check (points >= 0)`,
-  `created_at`, `updated_at`; `unique (program_id, email)`.
+  `first_name text`, `last_name text` (1–50 characters), `points int not null check (points >= 0)`
+  (set from the program's welcome points on insert), `created_at`, `updated_at`;
+  `unique (program_id, email)`.
 - **`wallet_passes`**: `id uuid`, `member_id → members on delete cascade`,
-  `provider wallet_provider ('apple' | 'google')`, `serial_number text unique` (random, QR content),
-  `authentication_token text` (Apple, ≥ 32 random bytes), `google_object_id text unique`,
-  `installed_at timestamptz`, `uninstalled_at timestamptz`, `created_at`, `updated_at`
-  (drives Apple `passesUpdatedSince` / `Last-Modified`).
+  `provider wallet_provider ('apple' | 'google')`, `serial_number text unique` (16 random bytes,
+  QR content), `authentication_token text` (32 random bytes, every pass), `created_at`,
+  `updated_at` (drives Apple `passesUpdatedSince` / `Last-Modified`); `installed_at timestamptz`
+  and `uninstalled_at timestamptz` are added by PR 8.
 - **`point_transactions`** (append-only, no update / delete policy): `id bigint identity`,
   `member_id`, `delta int check (delta <> 0)`, `balance_after int`, `created_by uuid`, `created_at`.
 - **`apple_devices`**: `id`, `device_library_identifier text unique`, `push_token text`.
@@ -340,7 +379,8 @@ Server routes (external callers):
   - `GET /api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier?passesUpdatedSince=`
   - `GET /api/apple/v1/passes/$passTypeIdentifier/$serialNumber`
   - `POST /api/apple/v1/log`
-- `GET /api/apple/passes/$serialNumber`: `.pkpass` download.
+- `GET /api/apple/passes/$serialNumber?token=`: `.pkpass` download (pass link).
+- `GET /api/google/passes/$serialNumber?token=`: redirect to the Google save link (pass link).
 - `POST /api/google/callback`: save / delete callback (signature-verified).
 
 ## Configuration
