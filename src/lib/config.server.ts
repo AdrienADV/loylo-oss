@@ -43,6 +43,35 @@ const appleWalletEnvSchema = appleIdentifiersEnvSchema.extend({
 	APPLE_SIGNER_KEY_PASSPHRASE: optionalString,
 });
 
+/** Service account key file, as downloaded from Google Cloud. */
+const googleServiceAccountSchema = z
+	.string()
+	.transform((value, ctx) => {
+		try {
+			return JSON.parse(value) as unknown;
+		} catch {
+			ctx.issues.push({
+				code: "custom",
+				message: "Expected JSON",
+				input: value,
+			});
+			return z.NEVER;
+		}
+	})
+	.pipe(
+		z.object({
+			client_email: z.email(),
+			private_key: pemSchema,
+			token_uri: z.url().default("https://oauth2.googleapis.com/token"),
+		}),
+	);
+
+const googleWalletEnvSchema = z.object({
+	APP_URL: urlWithoutTrailingSlash,
+	GOOGLE_ISSUER_ID: z.string().regex(/^\d+$/, "Expected a numeric Issuer ID"),
+	GOOGLE_SERVICE_ACCOUNT_JSON: googleServiceAccountSchema,
+});
+
 function parseEnv<T extends z.ZodType>(schema: T, scope: string): z.output<T> {
 	const result = schema.safeParse(process.env);
 	if (!result.success) {
@@ -89,6 +118,22 @@ export function getApplePushConfig() {
 			teamId: env.APPLE_TEAM_ID,
 			keyId: env.APNS_KEY_ID,
 			privateKey: env.APNS_KEY,
+		},
+	};
+}
+
+export function getGoogleWalletConfig() {
+	const env = parseEnv(googleWalletEnvSchema, "Google Wallet");
+	const serviceAccount = env.GOOGLE_SERVICE_ACCOUNT_JSON;
+
+	return {
+		issuerId: env.GOOGLE_ISSUER_ID,
+		callbackUrl: `${env.APP_URL}/api/google/callback`,
+		origins: [env.APP_URL],
+		serviceAccount: {
+			clientEmail: serviceAccount.client_email,
+			privateKey: serviceAccount.private_key,
+			tokenUri: serviceAccount.token_uri,
 		},
 	};
 }
