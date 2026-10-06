@@ -21,12 +21,17 @@ import { Route as AuthConfirmRouteImport } from './routes/auth/confirm'
 import { Route as JoinProgramIdRouteImport } from './routes/join/$programId'
 import { Route as AuthedProgramsProgramIdRouteImport } from './routes/_authed/programs/$programId'
 import { Route as AuthedProgramsNewRouteImport } from './routes/_authed/programs/new'
+import { Route as ApiGoogleCallbackRouteImport } from './routes/api/google/callback'
 import { Route as AuthedProgramsProgramIdIndexRouteImport } from './routes/_authed/programs/$programId/index'
 import { Route as AuthedProgramsProgramIdSettingsRouteImport } from './routes/_authed/programs/$programId/settings'
 import { Route as AuthedProgramsProgramIdShareRouteImport } from './routes/_authed/programs/$programId/share'
 import { Route as ApiApplePassesSerialNumberRouteImport } from './routes/api/apple/passes/$serialNumber'
+import { Route as ApiAppleV1LogRouteImport } from './routes/api/apple/v1/log'
 import { Route as ApiGooglePassesSerialNumberRouteImport } from './routes/api/google/passes/$serialNumber'
 import { Route as AuthedProgramsProgramIdMembersNewRouteImport } from './routes/_authed/programs/$programId/members/new'
+import { Route as ApiAppleV1PassesPassTypeIdentifierSerialNumberRouteImport } from './routes/api/apple/v1/passes/$passTypeIdentifier/$serialNumber'
+import { Route as ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierIndexRouteImport } from './routes/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/index'
+import { Route as ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierSerialNumberRouteImport } from './routes/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -86,6 +91,11 @@ const AuthedProgramsNewRoute = AuthedProgramsNewRouteImport.update({
   path: '/programs/new',
   getParentRoute: () => AuthedRoute,
 } as any)
+const ApiGoogleCallbackRoute = ApiGoogleCallbackRouteImport.update({
+  id: '/api/google/callback',
+  path: '/api/google/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthedProgramsProgramIdIndexRoute =
   AuthedProgramsProgramIdIndexRouteImport.update({
     id: '/',
@@ -110,6 +120,11 @@ const ApiApplePassesSerialNumberRoute =
     path: '/api/apple/passes/$serialNumber',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiAppleV1LogRoute = ApiAppleV1LogRouteImport.update({
+  id: '/api/apple/v1/log',
+  path: '/api/apple/v1/log',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGooglePassesSerialNumberRoute =
   ApiGooglePassesSerialNumberRouteImport.update({
     id: '/api/google/passes/$serialNumber',
@@ -122,6 +137,28 @@ const AuthedProgramsProgramIdMembersNewRoute =
     path: '/members/new',
     getParentRoute: () => AuthedProgramsProgramIdRoute,
   } as any)
+const ApiAppleV1PassesPassTypeIdentifierSerialNumberRoute =
+  ApiAppleV1PassesPassTypeIdentifierSerialNumberRouteImport.update({
+    id: '/api/apple/v1/passes/$passTypeIdentifier/$serialNumber',
+    path: '/api/apple/v1/passes/$passTypeIdentifier/$serialNumber',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierIndexRoute =
+  ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierIndexRouteImport.update(
+    {
+      id: '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/',
+      path: '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/',
+      getParentRoute: () => rootRouteImport,
+    } as any,
+  )
+const ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierSerialNumberRoute =
+  ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierSerialNumberRouteImport.update(
+    {
+      id: '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber',
+      path: '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber',
+      getParentRoute: () => rootRouteImport,
+    } as any,
+  )
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -134,12 +171,17 @@ export interface FileRoutesByFullPath {
   '/join/$programId': typeof JoinProgramIdRoute
   '/programs/$programId': typeof AuthedProgramsProgramIdRouteWithChildren
   '/programs/new': typeof AuthedProgramsNewRoute
+  '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/programs/$programId/settings': typeof AuthedProgramsProgramIdSettingsRoute
   '/programs/$programId/share': typeof AuthedProgramsProgramIdShareRoute
   '/api/apple/passes/$serialNumber': typeof ApiApplePassesSerialNumberRoute
+  '/api/apple/v1/log': typeof ApiAppleV1LogRoute
   '/api/google/passes/$serialNumber': typeof ApiGooglePassesSerialNumberRoute
   '/programs/$programId/': typeof AuthedProgramsProgramIdIndexRoute
   '/programs/$programId/members/new': typeof AuthedProgramsProgramIdMembersNewRoute
+  '/api/apple/v1/passes/$passTypeIdentifier/$serialNumber': typeof ApiAppleV1PassesPassTypeIdentifierSerialNumberRoute
+  '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber': typeof ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierSerialNumberRoute
+  '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/': typeof ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -151,12 +193,17 @@ export interface FileRoutesByTo {
   '/auth/confirm': typeof AuthConfirmRoute
   '/join/$programId': typeof JoinProgramIdRoute
   '/programs/new': typeof AuthedProgramsNewRoute
+  '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/programs/$programId/settings': typeof AuthedProgramsProgramIdSettingsRoute
   '/programs/$programId/share': typeof AuthedProgramsProgramIdShareRoute
   '/api/apple/passes/$serialNumber': typeof ApiApplePassesSerialNumberRoute
+  '/api/apple/v1/log': typeof ApiAppleV1LogRoute
   '/api/google/passes/$serialNumber': typeof ApiGooglePassesSerialNumberRoute
   '/programs/$programId': typeof AuthedProgramsProgramIdIndexRoute
   '/programs/$programId/members/new': typeof AuthedProgramsProgramIdMembersNewRoute
+  '/api/apple/v1/passes/$passTypeIdentifier/$serialNumber': typeof ApiAppleV1PassesPassTypeIdentifierSerialNumberRoute
+  '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber': typeof ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierSerialNumberRoute
+  '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier': typeof ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -172,12 +219,17 @@ export interface FileRoutesById {
   '/join/$programId': typeof JoinProgramIdRoute
   '/_authed/programs/$programId': typeof AuthedProgramsProgramIdRouteWithChildren
   '/_authed/programs/new': typeof AuthedProgramsNewRoute
+  '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/_authed/programs/$programId/settings': typeof AuthedProgramsProgramIdSettingsRoute
   '/_authed/programs/$programId/share': typeof AuthedProgramsProgramIdShareRoute
   '/api/apple/passes/$serialNumber': typeof ApiApplePassesSerialNumberRoute
+  '/api/apple/v1/log': typeof ApiAppleV1LogRoute
   '/api/google/passes/$serialNumber': typeof ApiGooglePassesSerialNumberRoute
   '/_authed/programs/$programId/': typeof AuthedProgramsProgramIdIndexRoute
   '/_authed/programs/$programId/members/new': typeof AuthedProgramsProgramIdMembersNewRoute
+  '/api/apple/v1/passes/$passTypeIdentifier/$serialNumber': typeof ApiAppleV1PassesPassTypeIdentifierSerialNumberRoute
+  '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber': typeof ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierSerialNumberRoute
+  '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/': typeof ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -192,12 +244,17 @@ export interface FileRouteTypes {
     | '/join/$programId'
     | '/programs/$programId'
     | '/programs/new'
+    | '/api/google/callback'
     | '/programs/$programId/settings'
     | '/programs/$programId/share'
     | '/api/apple/passes/$serialNumber'
+    | '/api/apple/v1/log'
     | '/api/google/passes/$serialNumber'
     | '/programs/$programId/'
     | '/programs/$programId/members/new'
+    | '/api/apple/v1/passes/$passTypeIdentifier/$serialNumber'
+    | '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber'
+    | '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -209,12 +266,17 @@ export interface FileRouteTypes {
     | '/auth/confirm'
     | '/join/$programId'
     | '/programs/new'
+    | '/api/google/callback'
     | '/programs/$programId/settings'
     | '/programs/$programId/share'
     | '/api/apple/passes/$serialNumber'
+    | '/api/apple/v1/log'
     | '/api/google/passes/$serialNumber'
     | '/programs/$programId'
     | '/programs/$programId/members/new'
+    | '/api/apple/v1/passes/$passTypeIdentifier/$serialNumber'
+    | '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber'
+    | '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier'
   id:
     | '__root__'
     | '/'
@@ -229,12 +291,17 @@ export interface FileRouteTypes {
     | '/join/$programId'
     | '/_authed/programs/$programId'
     | '/_authed/programs/new'
+    | '/api/google/callback'
     | '/_authed/programs/$programId/settings'
     | '/_authed/programs/$programId/share'
     | '/api/apple/passes/$serialNumber'
+    | '/api/apple/v1/log'
     | '/api/google/passes/$serialNumber'
     | '/_authed/programs/$programId/'
     | '/_authed/programs/$programId/members/new'
+    | '/api/apple/v1/passes/$passTypeIdentifier/$serialNumber'
+    | '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber'
+    | '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -243,8 +310,13 @@ export interface RootRouteChildren {
   GuestRoute: typeof GuestRouteWithChildren
   AuthConfirmRoute: typeof AuthConfirmRoute
   JoinProgramIdRoute: typeof JoinProgramIdRoute
+  ApiGoogleCallbackRoute: typeof ApiGoogleCallbackRoute
   ApiApplePassesSerialNumberRoute: typeof ApiApplePassesSerialNumberRoute
+  ApiAppleV1LogRoute: typeof ApiAppleV1LogRoute
   ApiGooglePassesSerialNumberRoute: typeof ApiGooglePassesSerialNumberRoute
+  ApiAppleV1PassesPassTypeIdentifierSerialNumberRoute: typeof ApiAppleV1PassesPassTypeIdentifierSerialNumberRoute
+  ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierSerialNumberRoute: typeof ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierSerialNumberRoute
+  ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierIndexRoute: typeof ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -333,6 +405,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedProgramsNewRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/api/google/callback': {
+      id: '/api/google/callback'
+      path: '/api/google/callback'
+      fullPath: '/api/google/callback'
+      preLoaderRoute: typeof ApiGoogleCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authed/programs/$programId/': {
       id: '/_authed/programs/$programId/'
       path: '/'
@@ -361,6 +440,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiApplePassesSerialNumberRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/apple/v1/log': {
+      id: '/api/apple/v1/log'
+      path: '/api/apple/v1/log'
+      fullPath: '/api/apple/v1/log'
+      preLoaderRoute: typeof ApiAppleV1LogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/google/passes/$serialNumber': {
       id: '/api/google/passes/$serialNumber'
       path: '/api/google/passes/$serialNumber'
@@ -374,6 +460,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/programs/$programId/members/new'
       preLoaderRoute: typeof AuthedProgramsProgramIdMembersNewRouteImport
       parentRoute: typeof AuthedProgramsProgramIdRoute
+    }
+    '/api/apple/v1/passes/$passTypeIdentifier/$serialNumber': {
+      id: '/api/apple/v1/passes/$passTypeIdentifier/$serialNumber'
+      path: '/api/apple/v1/passes/$passTypeIdentifier/$serialNumber'
+      fullPath: '/api/apple/v1/passes/$passTypeIdentifier/$serialNumber'
+      preLoaderRoute: typeof ApiAppleV1PassesPassTypeIdentifierSerialNumberRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/': {
+      id: '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/'
+      path: '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier'
+      fullPath: '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/'
+      preLoaderRoute: typeof ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber': {
+      id: '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber'
+      path: '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber'
+      fullPath: '/api/apple/v1/devices/$deviceLibraryIdentifier/registrations/$passTypeIdentifier/$serialNumber'
+      preLoaderRoute: typeof ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierSerialNumberRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -436,8 +543,16 @@ const rootRouteChildren: RootRouteChildren = {
   GuestRoute: GuestRouteWithChildren,
   AuthConfirmRoute: AuthConfirmRoute,
   JoinProgramIdRoute: JoinProgramIdRoute,
+  ApiGoogleCallbackRoute: ApiGoogleCallbackRoute,
   ApiApplePassesSerialNumberRoute: ApiApplePassesSerialNumberRoute,
+  ApiAppleV1LogRoute: ApiAppleV1LogRoute,
   ApiGooglePassesSerialNumberRoute: ApiGooglePassesSerialNumberRoute,
+  ApiAppleV1PassesPassTypeIdentifierSerialNumberRoute:
+    ApiAppleV1PassesPassTypeIdentifierSerialNumberRoute,
+  ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierSerialNumberRoute:
+    ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierSerialNumberRoute,
+  ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierIndexRoute:
+    ApiAppleV1DevicesDeviceLibraryIdentifierRegistrationsPassTypeIdentifierIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

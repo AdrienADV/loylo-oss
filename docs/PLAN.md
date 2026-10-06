@@ -1,6 +1,6 @@
 # Loylo OSS — MVP plan
 
-Status: **in progress**: PRs 1–7 merged, next is PR 8 (`feat/wallet-web-services`). See [Status and handoff](#status-and-handoff).
+Status: **in progress**: PRs 1–8 merged, next is PR 9 (`feat/points`). See [Status and handoff](#status-and-handoff).
 
 This document is the shared context for building Loylo OSS: what we build, what we decided,
 why, and in which order. Read it before starting any PR.
@@ -18,8 +18,9 @@ Read this section first when picking up the work in a new session.
 | 5 | `feat/auth` | #6 | merged |
 | 6 | `feat/programs` | #7 | merged |
 | 7 | `feat/enrollment` | #9 | merged |
-| 8 | `feat/wallet-web-services` | — | **next** |
-| 9–11 | see [Pull requests](#pull-requests) | — | to do |
+| 8 | `feat/wallet-web-services` | #10 | merged |
+| 9 | `feat/points` | — | **next** |
+| 10–11 | see [Pull requests](#pull-requests) | — | to do |
 
 How the owner works: one PR at a time; the owner merges it (even while the Cloudflare build
 is red, see below) and says when to start the next one. Do not start the next PR without the go.
@@ -73,6 +74,19 @@ These refine or override the sections below.
   (`issue_wallet_pass`, RLS), which reuses the member and keeps their points.
 - **`citext` in SQL functions**: under `search_path = ''`, `=` on `citext` is case-sensitive;
   compare with `operator(extensions.=)`.
+- **Pass content version** = the latest of the pass's `created_at`, its member's `updated_at` and
+  its program's `updated_at` (`list_apple_device_passes`, `passContentUpdatedAt`). It drives
+  Apple's `passesUpdatedSince` tags (microsecond timestamps) and `Last-Modified`: changing points
+  or a program marks the passes as updated without writing to `wallet_passes`, and install-state
+  changes do not make devices download passes again. `If-Modified-Since` is ignored (second
+  precision would miss two changes within one second).
+- **Install state**: a pass is installed while `installed_at` is set and `uninstalled_at` is not.
+  Apple: installed while at least one device is registered (`register_apple_device`,
+  `unregister_apple_device`, which also forgets devices without passes). Google: signed save /
+  delete callbacks (`record_wallet_pass_install`, idempotent).
+- **Apple devices are server only**: `apple_devices` / `apple_registrations` have RLS on, no
+  policies, grants for `service_role` only; read push tokens with the admin client after checking
+  the merchant's access with the user client.
 
 ### Code map
 
@@ -92,6 +106,7 @@ These refine or override the sections below.
 | `src/routes/_guest*`, `src/routes/_authed*` | signed-out and signed-in layouts and pages (program overview, share, issue a card, settings); `src/routes/auth/confirm.ts` |
 | `src/routes/join/$programId.tsx` | public enrollment page |
 | `src/routes/api/{apple,google}/passes/$serialNumber.ts` | pass links |
+| `src/features/wallet-services/`, `src/routes/api/apple/v1/`, `src/routes/api/google/callback.ts` | Apple PassKit Web Service, Google save / delete callback |
 
 Code conventions: server functions use `.validator()` (`inputValidator()` is deprecated in this
 TanStack Start version); a foreign or unknown ID throws `notFound()`; errors shown to users are
@@ -144,23 +159,27 @@ generate shadcn components from the shadcn GitHub sources with the `base-luma` s
   submit buttons until hydration.
 - Biome reports formatting issues in starter files (`biome.json` schema version, `button.tsx`,
   `router.tsx`, `__root.tsx`); they predate the project work and were left untouched.
-- Program changes (name, color, logo) are not pushed to installed passes yet (needs PR 8). Google
-  objects are refreshed whenever their pass link is opened.
+- **No pushes yet**: the Apple web service reports changed passes, but nothing sends APNs pushes
+  or patches Google objects after a change (PR 9). Google objects are refreshed whenever their pass
+  link is opened.
+- **Real devices** need HTTPS for the Apple web service (or "Allow HTTP Services" in the iPhone's
+  developer settings), real Apple certificates and a Google issuer account; APNs only works from a
+  deployed Worker.
 
-### Notes for PR 8 (`feat/wallet-web-services`)
+### Notes for PR 9 (`feat/points`)
 
-- Migration `create_apple_registrations`: `apple_devices`, `apple_registrations`, and
-  `wallet_passes.installed_at` / `uninstalled_at` (deferred from PR 7), with explicit grants and
-  RLS on with no policies for the `apple_*` tables.
-- Apple web service: requests carry `Authorization: ApplePass {authentication_token}`; look the
-  pass up by serial number and compare the token in constant time, as `findLinkedPass` does.
-  `GET /v1/passes/...` can reuse `createApplePassFile`; `Last-Modified` and `passesUpdatedSince`
-  come from `wallet_passes.updated_at`. Passes issued since PR 7 already carry
-  `webServiceURL = {APP_URL}/api/apple`.
-- Google callback: the object ID is `{GOOGLE_ISSUER_ID}.{wallet pass id}`: check the issuer, then
-  read the pass ID from the suffix.
-- These endpoints have no user: use `createAdminClient()` with strict validation, and rate-limit
-  them where it makes sense.
+- Migration `create_point_transactions`: `point_transactions` and `adjust_points()`, plus the
+  `members (program_id, created_at)` index for the members list. Updating `members.points` bumps
+  `members.updated_at`, which is enough to mark the member's passes as updated: `adjust_points`
+  does not need to touch `wallet_passes`.
+- Members list: show the install state (`installed_at` / `uninstalled_at`, readable by merchants).
+- Wallet sync after each change (the `WalletProvider` interface): Apple, push the devices
+  registered for the member's passes (`sendPassUpdatePushes`; push tokens through the admin client
+  once the user client has confirmed the member belongs to the merchant; an `unregistered` result
+  should remove that registration with `unregister_apple_device`). Google, `setLoyaltyPoints` on
+  `{GOOGLE_ISSUER_ID}.{wallet pass id}` (the object only exists once its pass link was opened).
+  Program edits could push every pass of the program the same way.
+- The scan page reads the QR code: the serial number.
 
 ## Context
 
@@ -315,20 +334,22 @@ auth.users ─1..n─ programs ─1..n─ members ─1..n─ wallet_passes ─n.
 - **`wallet_passes`**: `id uuid`, `member_id → members on delete cascade`,
   `provider wallet_provider ('apple' | 'google')`, `serial_number text unique` (16 random bytes,
   QR content), `authentication_token text` (32 random bytes, every pass), `created_at`,
-  `updated_at` (drives Apple `passesUpdatedSince` / `Last-Modified`); `installed_at timestamptz`
-  and `uninstalled_at timestamptz` are added by PR 8.
+  `updated_at`, `installed_at timestamptz`, `uninstalled_at timestamptz` (PR 8). The content
+  version that drives Apple `passesUpdatedSince` / `Last-Modified` comes from the member and the
+  program (see the decisions above).
 - **`point_transactions`** (append-only, no update / delete policy): `id bigint identity`,
   `member_id`, `delta int check (delta <> 0)`, `balance_after int`, `created_by uuid`, `created_at`.
-- **`apple_devices`**: `id`, `device_library_identifier text unique`, `push_token text`.
-- **`apple_registrations`**: `device_id`, `pass_id`, `pk (device_id, pass_id)`.
+- **`apple_devices`**: `id`, `device_library_identifier text unique`, `push_token text`,
+  `created_at`, `updated_at`.
+- **`apple_registrations`**: `device_id`, `pass_id`, `created_at`, `pk (device_id, pass_id)`.
 - **`notifications`**: `id`, `program_id`, `message text check (char_length between 1 and 100)`,
   `sent_by`, `created_at`, `delivered_count int`, `failed_count int`.
 
 SQL functions (`security invoker`, so RLS still applies):
 
 - `adjust_points(member_id, delta)`: one `update members set points = points + delta ... returning`
-  (the check constraint rejects negative balances), inserts the ledger row, bumps the passes'
-  `updated_at`, returns the new balance. No lost updates.
+  (the check constraint rejects negative balances), inserts the ledger row, returns the new
+  balance. No lost updates. The new `members.updated_at` marks the passes as updated.
 - `create_notification(program_id, message, monthly_cap)`: locks the program row, checks the
   24 h rule and the monthly cap, inserts, sets `programs.wallet_message`. No double send.
 
