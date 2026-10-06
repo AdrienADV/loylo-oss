@@ -28,6 +28,15 @@ const optionalString = z
 	.optional()
 	.transform((value) => value || undefined);
 
+const supabaseEnvSchema = z.object({
+	VITE_SUPABASE_URL: z.url(),
+	VITE_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
+});
+
+const supabaseAdminEnvSchema = supabaseEnvSchema.extend({
+	SUPABASE_SECRET_KEY: z.string().min(1),
+});
+
 const appleIdentifiersEnvSchema = z.object({
 	APPLE_TEAM_ID: z
 		.string()
@@ -84,6 +93,19 @@ function parseEnv<T extends z.ZodType>(schema: T, scope: string): z.output<T> {
 		);
 	}
 	return result.data;
+}
+
+export function getSupabaseConfig() {
+	const env = parseEnv(supabaseEnvSchema, "Supabase");
+	return {
+		url: env.VITE_SUPABASE_URL,
+		publishableKey: env.VITE_SUPABASE_PUBLISHABLE_KEY,
+	};
+}
+
+export function getSupabaseAdminConfig() {
+	const env = parseEnv(supabaseAdminEnvSchema, "Supabase admin");
+	return { url: env.VITE_SUPABASE_URL, secretKey: env.SUPABASE_SECRET_KEY };
 }
 
 export function getAppleWalletConfig() {
