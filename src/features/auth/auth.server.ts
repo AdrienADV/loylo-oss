@@ -1,20 +1,10 @@
-import { env } from "cloudflare:workers";
 import { createServerClient } from "@supabase/ssr";
 import type { AuthError } from "@supabase/supabase-js";
-import { getRequest } from "@tanstack/react-start/server";
 
 import { getSupabaseAdminConfig } from "#/lib/config.server";
+import { consumeRateLimit, getClientIp } from "#/lib/rate-limit.server";
 import { sessionCookies } from "#/lib/supabase/cookies.server";
 import type { Database } from "#/lib/supabase/database.types";
-
-function getClientIp(): string | undefined {
-	const headers = getRequest().headers;
-	return (
-		headers.get("cf-connecting-ip") ??
-		headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-		undefined
-	);
-}
 
 /**
  * Client for Supabase Auth endpoints only (sign in, sign up, OTP, password
@@ -36,10 +26,7 @@ export type AuthAction = "sign-in" | "sign-up" | "password-reset";
 
 /** Slows down credential stuffing: a few attempts per minute and per IP. */
 export async function enforceAuthRateLimit(action: AuthAction): Promise<void> {
-	const { success } = await env.AUTH_RATE_LIMITER.limit({
-		key: `${action}:${getClientIp() ?? "unknown"}`,
-	});
-	if (!success) {
+	if (!(await consumeRateLimit("AUTH_RATE_LIMITER", action))) {
 		throw new Error("Too many attempts. Wait a minute and try again.");
 	}
 }
