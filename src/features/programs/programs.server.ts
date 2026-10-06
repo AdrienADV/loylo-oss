@@ -145,6 +145,20 @@ export async function uploadProgramImages(
 	);
 }
 
+export async function downloadProgramImage(
+	supabase: Supabase,
+	folder: string,
+	name: ProgramImageName,
+): Promise<Uint8Array<ArrayBuffer>> {
+	const { data, error } = await supabase.storage
+		.from(BUCKET)
+		.download(`${folder}/${name}`);
+	if (error) {
+		throw new Error(`Could not download ${folder}/${name}: ${error.message}`);
+	}
+	return new Uint8Array(await data.arrayBuffer());
+}
+
 /** Best effort: a leftover image is harmless, so failures are only logged. */
 export async function removeProgramImages(
 	supabase: Supabase,
@@ -166,7 +180,7 @@ export type WalletSyncResult = "synced" | "skipped" | "failed";
  */
 export async function syncGoogleLoyaltyClass(
 	supabase: Supabase,
-	row: ProgramRow,
+	row: Pick<ProgramRow, "id" | "name" | "background_color" | "logo_path">,
 ): Promise<WalletSyncResult> {
 	const config = getOptionalGoogleWalletConfig();
 	if (!config || !row.logo_path) {

@@ -124,6 +124,26 @@ export function getAppleWalletConfig() {
 	};
 }
 
+export type AppleWalletConfig = ReturnType<typeof getAppleWalletConfig>;
+
+/**
+ * Apple Wallet is optional: `null` when the deployment sets none of its
+ * variables. A partial configuration still fails validation.
+ */
+export function getOptionalAppleWalletConfig(): AppleWalletConfig | null {
+	const names = [
+		"APPLE_TEAM_ID",
+		"APPLE_PASS_TYPE_ID",
+		"APPLE_WWDR_CERT",
+		"APPLE_SIGNER_CERT",
+		"APPLE_SIGNER_KEY",
+	];
+	if (names.every((name) => !process.env[name])) {
+		return null;
+	}
+	return getAppleWalletConfig();
+}
+
 const applePushEnvSchema = appleIdentifiersEnvSchema.extend({
 	APNS_KEY_ID: z
 		.string()
@@ -160,8 +180,10 @@ export function getGoogleWalletConfig() {
 	};
 }
 
+export type GoogleWalletConfig = ReturnType<typeof getGoogleWalletConfig>;
+
 /** Google Wallet is optional: `null` when the deployment does not configure it. */
-export function getOptionalGoogleWalletConfig() {
+export function getOptionalGoogleWalletConfig(): GoogleWalletConfig | null {
 	if (
 		!process.env.GOOGLE_ISSUER_ID &&
 		!process.env.GOOGLE_SERVICE_ACCOUNT_JSON
