@@ -8,31 +8,38 @@ import { appleWalletSync } from "#/features/wallet-sync/apple-wallet-sync.server
 import { googleWalletSync } from "#/features/wallet-sync/google-wallet-sync.server";
 import {
 	combineSyncResults,
-	type MemberPasses,
+	type ProgramToSync,
 	type WalletSync,
 	type WalletSyncResult,
 } from "#/features/wallet-sync/wallet-sync";
 import type { Database } from "#/lib/supabase/database.types";
+
+type Supabase = SupabaseClient<Database>;
 
 const WALLET_SYNCS: Record<WalletProvider, WalletSync> = {
 	apple: appleWalletSync,
 	google: googleWalletSync,
 };
 
-async function syncWallet(
-	provider: WalletProvider,
-	passes: MemberPasses,
+/** Runs `sync` for each wallet; a wallet that throws counts as `failed`. */
+async function syncEachWallet(
+	sync: (
+		wallet: WalletSync,
+		provider: WalletProvider,
+	) => Promise<WalletSyncResult>,
 ): Promise<WalletSyncResult> {
-	if (passes.passIds.length === 0) {
-		return "skipped";
-	}
-	try {
-		return await WALLET_SYNCS[provider].syncMemberPasses(passes);
-	} catch (error) {
-		// A wallet's configuration may be invalid: the change is saved anyway.
-		console.error(`Could not sync the ${provider} passes`, error);
-		return "failed";
-	}
+	const results = await Promise.all(
+		WALLET_PROVIDERS.map(async (provider) => {
+			try {
+				return await sync(WALLET_SYNCS[provider], provider);
+			} catch (error) {
+				// A wallet's configuration may be invalid: the change is saved anyway.
+				console.error(`Could not sync the ${provider} passes`, error);
+				return "failed" as const;
+			}
+		}),
+	);
+	return combineSyncResults(results);
 }
 
 /**
@@ -42,7 +49,7 @@ async function syncWallet(
  * Returns `null` for an unknown or foreign member.
  */
 export async function syncMemberWallets(
-	supabase: SupabaseClient<Database>,
+	supabase: Supabase,
 	memberId: string,
 ): Promise<WalletSyncResult | null> {
 	const { data: member, error } = await supabase
@@ -62,15 +69,36 @@ export async function syncMemberWallets(
 		return null;
 	}
 
-	const results = await Promise.all(
-		WALLET_PROVIDERS.map((provider) =>
-			syncWallet(provider, {
-				points: member.points,
-				passIds: member.wallet_passes
-					.filter((pass) => pass.provider === provider)
-					.map((pass) => pass.id),
-			}),
-		),
+	return syncEachWallet((wallet, provider) => {
+		const passIds = member.wallet_passes
+			.filter((pass) => pass.provider === provider)
+			.map((pass) => pass.id);
+		return passIds.length === 0
+			? Promise.resolve("skipped")
+			: wallet.syncMemberPasses({ points: member.points, passIds });
+	});
+}
+
+/**
+ * Brings every pass of the program up to date after a change to its name,
+ * color or logo. `supabase` is the merchant's client, and `program` a row it
+ * could read.
+ */
+export function syncProgramWallets(
+	supabase: Supabase,
+	program: ProgramToSync,
+): Promise<WalletSyncResult> {
+	return syncEachWallet((wallet) =>
+		wallet.syncProgramPasses(supabase, program),
 	);
-	return combineSyncResults(results);
+}
+
+/** Shows the program's new message on every pass and notifies their holders. */
+export function sendProgramMessageToWallets(
+	supabase: Supabase,
+	program: ProgramToSync,
+): Promise<WalletSyncResult> {
+	return syncEachWallet((wallet) =>
+		wallet.sendProgramMessage(supabase, program),
+	);
 }

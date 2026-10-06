@@ -1,6 +1,6 @@
 # Loylo OSS — MVP plan
 
-Status: **in progress**: PRs 1–9 merged, next is PR 10 (`feat/marketing-notifications`). See [Status and handoff](#status-and-handoff).
+Status: **in progress**: PRs 1–10 merged, next is PR 11 (`feat/account`). See [Status and handoff](#status-and-handoff).
 
 This document is the shared context for building Loylo OSS: what we build, what we decided,
 why, and in which order. Read it before starting any PR.
@@ -20,8 +20,8 @@ Read this section first when picking up the work in a new session.
 | 7 | `feat/enrollment` | #9 | merged |
 | 8 | `feat/wallet-web-services` | #10 | merged |
 | 9 | `feat/points` | #12 | merged |
-| 10 | `feat/marketing-notifications` | — | **next** |
-| 11 | see [Pull requests](#pull-requests) | — | to do |
+| 10 | `feat/marketing-notifications` | #14 | merged |
+| 11 | `feat/account` | — | **next** |
 
 How the owner works: one PR at a time; the owner merges it (even while the Cloudflare build
 is red, see below) and says when to start the next one. Do not start the next PR without the go.
@@ -35,8 +35,8 @@ These refine or override the sections below.
 - **The `WalletProvider` interface is `WalletSync`** (`src/features/wallet-sync/`): the name
   `WalletProvider` already was the `'apple' | 'google'` type, after the `wallet_provider` enum.
 - **Only what is used**: `citext` and the `wallet_provider` enum arrived with PR 7,
-  `wallet_passes.installed_at` / `uninstalled_at` with PR 8; `programs.wallet_message` arrives with
-  PR 10. No `google_class_id` or `google_object_id` column: the class ID is
+  `wallet_passes.installed_at` / `uninstalled_at` with PR 8, `programs.wallet_message` with PR 10.
+  No `google_class_id` or `google_object_id` column: the class ID is
   `{GOOGLE_ISSUER_ID}.{program id}`, the object ID `{GOOGLE_ISSUER_ID}.{wallet pass id}`.
 - **Explicit grants**: Supabase is moving the Data API to opt-in grants, so every migration
   grants table and column privileges itself (nothing for `anon`), next to RLS.
@@ -113,12 +113,32 @@ These refine or override the sections below.
   scanners, which type the code. Serial numbers are matched case-insensitively.
 - **Dates** render in UTC on the server and in the viewer's time zone after hydration
   (`FormattedDate`), which avoids hydration mismatches.
+- **Sending rules in the database**: `create_notification()` locks the program row, refuses a
+  second message within 24 hours (`LY001`) and more than the monthly cap per calendar month, UTC
+  (`LY002`), records the message and sets `programs.wallet_message`, which merchants cannot
+  update. It is server only: the cap is the deployment's `NOTIFICATIONS_MONTHLY_CAP` (default 4,
+  0 turns messages off), so `sendNotification` reads the program with the user client (RLS), then
+  calls it with the admin client. `notification_usage()` gives the page the same counts.
+- **Message delivery**: Apple passes show `wallet_message` in their back field with
+  `changeMessage: "%@"`; setting it bumps `programs.updated_at`, every device of the program is
+  pushed (`list_program_apple_devices`, read 1000 devices at a time) and Wallet shows the new text
+  as a notification. Google: `addMessage` with `TEXT_AND_NOTIFY` (notifies Android holders), then
+  the class is replaced with the message as its only `TEXT` message, under the fixed ID
+  `program-message`: a class keeps at most 10 messages and `update` replaces them. Every class
+  upsert carries the current message, so pass links and program edits keep it.
+- **Program-level sync**: `WalletSync.syncProgramPasses` (design changes) and
+  `sendProgramMessage`. Saving a program now pushes its Apple passes; `retryProgramWalletSync`
+  syncs again without notifying (Apple only notifies a change the device has not shown, Google
+  class updates carry `TEXT` messages).
+- **No delivery counts**: the planned `notifications.delivered_count` / `failed_count` were left
+  out: a push accepted by APNs or a Google message reaches devices later, so the counts would not
+  mean "delivered". The page shows the send result and offers a retry instead.
 
 ### Code map
 
 | Path | Content |
 | --- | --- |
-| `src/lib/config.server.ts` | Env validation with Zod, read per request (`getSupabaseConfig`, `getSupabaseAdminConfig`, `getAppleWalletConfig`, `getOptionalAppleWalletConfig`, `getApplePushConfig`, `getOptionalApplePushConfig`, `getGoogleWalletConfig`, `getOptionalGoogleWalletConfig`) |
+| `src/lib/config.server.ts` | Env validation with Zod, read per request (`getSupabaseConfig`, `getSupabaseAdminConfig`, `getAppleWalletConfig`, `getOptionalAppleWalletConfig`, `getApplePushConfig`, `getOptionalApplePushConfig`, `getGoogleWalletConfig`, `getOptionalGoogleWalletConfig`, `getNotificationsConfig`) |
 | `src/lib/wallet/apple/` | `pass-json.ts` (pure builder), `pkpass.server.ts` (signing), `apns.server.ts` (pushes), `pkpass.server.test.ts` (the only test) |
 | `src/lib/wallet/google/` | `objects.ts` (class / object builders), `client.server.ts` (API client, save URL), `callback.server.ts` (callback verification) |
 | `src/lib/supabase/` | clients, `cookies.server.ts`, generated `database.types.ts` |
@@ -126,11 +146,12 @@ These refine or override the sections below.
 | `src/features/auth/` | schemas, server helpers, `authMiddleware`, server functions, `AuthCard` |
 | `src/features/programs/` | schemas (`PROGRAM_IMAGES`), server helpers, server functions, `ProgramForm`, `PassPreview`, `ProgramCard` |
 | `src/features/members/` | member / wallet / points schemas, server functions (`issuePass`, members list, member, scan lookup, points, history), `members.server.ts` (views, install state), `wallet-passes.server.ts` (pass links, `.pkpass` build, Google save link), `MemberPassForm`, `MemberList`, `PointsForm`, `QrScanner`, `WalletStateBadge` |
-| `src/features/wallet-sync/` | `WalletSync` interface and `combineSyncResults` (`wallet-sync.ts`), Apple and Google implementations, `syncMemberWallets` |
+| `src/features/wallet-sync/` | `WalletSync` interface and `combineSyncResults` (`wallet-sync.ts`), Apple and Google implementations, `syncMemberWallets`, `syncProgramWallets`, `sendProgramMessageToWallets` |
+| `src/features/notifications/` | message schema, quota view (`toNotificationQuota`), server functions (quota, history, send), `NotificationForm`, `NotificationPreview` |
 | `src/features/enrollment/` | public server functions `getPublicProgram`, `enroll` |
 | `src/lib/` (other) | `rate-limit.server.ts`, `supabase/errors.server.ts` (`databaseError`), `app-origin.ts` (isomorphic origin), `http.ts` |
 | `src/components/` | `qr-code.tsx` (SVG, `uqr`), `copy-button.tsx`, `formatted-date.tsx`, shadcn `ui/` |
-| `src/routes/_guest*`, `src/routes/_authed*` | signed-out and signed-in layouts and pages (program overview with members, member, scan, share, issue a card, settings); `src/routes/auth/confirm.ts` |
+| `src/routes/_guest*`, `src/routes/_authed*` | signed-out and signed-in layouts and pages (program overview with members, member, scan, messages, share, issue a card, settings); `src/routes/auth/confirm.ts` |
 | `src/routes/join/$programId.tsx` | public enrollment page |
 | `src/routes/api/{apple,google}/passes/$serialNumber.ts` | pass links |
 | `src/features/wallet-services/`, `src/routes/api/apple/v1/`, `src/routes/api/google/callback.ts` | Apple PassKit Web Service, Google save / delete callback |
@@ -162,8 +183,11 @@ Each PR so far was verified end to end before opening it. The environment used:
    created confirmed through the Auth admin API (`POST /auth/v1/admin/users` with the secret key).
    The scan page runs with a fake camera: Chromium's `--use-fake-device-for-media-stream
    --use-file-for-fake-video-capture=card.y4m` with a Y4M video of a QR code (grayscale frames
-   drawn from `uqr` are enough). Wallet sync paths (APNs `410`, Google `404`) were checked with a
-   Bun script that imports `syncMemberWallets` and mocks `fetch` for Apple and Google only.
+   drawn from `uqr` are enough). Wallet sync paths (APNs `410`, Google `404`, the message flow,
+   1000+ devices) were checked with Bun scripts that import the `wallet-sync.server.ts` functions
+   and mock `fetch` for Apple and Google only; Google needs an HTTPS logo URL, so pass them a
+   Supabase client created with an `https://` URL (it only builds public URLs). Backdate
+   `notifications.created_at` with `psql` to test the sending rules.
 6. Before pushing: `bunx tsc --noEmit`, Biome on the changed files, `bun run build` (and check that
    no server code ends up in `dist/client`), `bun run test`.
 
@@ -193,9 +217,13 @@ generate shadcn components from the shadcn GitHub sources with the `base-luma` s
   submit buttons until hydration.
 - Biome reports formatting issues in starter files (`biome.json` schema version, `button.tsx`,
   `router.tsx`, `__root.tsx`); they predate the project work and were left untouched.
-- **Program edits are not pushed to Apple passes**: devices pick up a new name, color or logo
-  with the member's next points change (or when the holder refreshes the pass). Google passes
-  follow their class. PR 10 adds program-wide pushes and should use them for edits too.
+- **Program-wide pushes run inside the request** (sending a message, saving a program): one APNs
+  request per device, 6 at a time. Each counts against the Worker's subrequest limit, so a large
+  program needs a queue (Cloudflare Queues) to reach every device.
+- **Google message flow checked with mocks only** (no issuer account here): on a real account,
+  check that the notification still arrives although the class is replaced right after
+  `addMessage`.
+- Sending the same text twice gives no Apple notification: Wallet only notifies changed fields.
 - **Locally, Apple pushes fail** (workerd has no HTTP/2, and the agent proxy answers `403`), so the
   member page shows its "cards could not be updated" warning whenever an Apple device is
   registered; Google syncs fail the same way with a fake service account.
@@ -203,21 +231,19 @@ generate shadcn components from the shadcn GitHub sources with the `base-luma` s
   developer settings), real Apple certificates and a Google issuer account; APNs only works from a
   deployed Worker.
 
-### Notes for PR 10 (`feat/marketing-notifications`)
+### Notes for PR 11 (`feat/account`)
 
-- Migration `create_notifications`: `programs.wallet_message`, `notifications` and
-  `create_notification()` (locks the program row, 24 h rule, monthly cap from
-  `NOTIFICATIONS_MONTHLY_CAP`).
-- Apple: `buildApplePassJson` already takes `program.message` (`createApplePassFile` passes
-  `null` today); its back field has `changeMessage: "%@"`, so a new message shows as a
-  notification once the pass is downloaded again. Updating `programs` bumps `updated_at`, which
-  marks every pass of the program as updated for the web service.
-- Add a program-level method to `WalletSync` (e.g. `syncProgramPasses`): Apple pushes every device
-  registered for the program's passes, Google `addLoyaltyClassMessage` (a message) or the class
-  upsert (`syncGoogleLoyaltyClass`, an edit). Use it in `updateProgram` too (see known issues).
-- Fan-out: page through the registrations (PostgREST returns at most `max_rows = 1000` rows),
-  send one push per distinct push token (all passes share one pass type), and mind the Workers
-  subrequest limits (see Platform constraints).
+- Account page: change email (confirmation email, `supabase/templates`), change password
+  (`updatePassword` exists), delete the account.
+- Deleting: Supabase forbids deleting storage objects in SQL, so remove the user's images
+  (`program-assets/{user id}/...`) through the Storage API first; deleting the user then cascades
+  to programs, members, passes, the points ledger and notifications. Use the admin client
+  (`auth.admin.deleteUser`) after checking the session, and sign the user out: deleting a user
+  does not revoke their access tokens. Google classes cannot be deleted; Apple devices drop their
+  registrations with the passes (cascade) and unregister later.
+- Landing page (`/`) and a README self-hosting guide: every variable of `.env.example` (including
+  `NOTIFICATIONS_MONTHLY_CAP`), the hosted Supabase setup listed in the known issues, the
+  Cloudflare rate limiter bindings, Apple and Google credentials.
 
 ## Context
 
@@ -344,7 +370,7 @@ These findings drive the design principles below.
 | Google Wallet auth + save JWT | `jose` (WebCrypto) instead of `google-auth-library` / `jsonwebtoken`. |
 | Google callback verification | WebCrypto ECDSA P-256 instead of Node `crypto`. |
 | APNs push (HTTP/2 required) | Deployed Workers reach APNs through `fetch`; local workerd cannot (cloudflare/workerd#4841), so pushes only work once deployed. No Edge Function needed. |
-| Marketing fan-out | Batch pushes; Cloudflare Queues if a program's device count exceeds per-request subrequest limits. |
+| Marketing fan-out | Pushes in the request, 6 at a time (PR 10); Cloudflare Queues if a program's device count exceeds per-request subrequest limits. |
 | Env vars | Not available at module scope: read per request (or via `cloudflare:workers` `env`), validated with Zod. |
 
 ## Database (Supabase, `public` schema, RLS on every table)
@@ -362,9 +388,9 @@ auth.users ─1..n─ programs ─1..n─ members ─1..n─ wallet_passes ─n.
 
 - **`programs`**: `id uuid pk default gen_random_uuid()`, `owner_id uuid not null → auth.users on delete cascade`,
   `name text check (char_length between 1 and 64)`, `background_color text check (~ '^#[0-9a-f]{6}$')`,
-  `logo_path text`, `initial_points int check (>= 0)`, `created_at`, `updated_at`; `wallet_message
-  text check (char_length <= 100)` is added by PR 10. The Google class ID is deterministic
-  (`{GOOGLE_ISSUER_ID}.{program id}`), so it is not stored.
+  `logo_path text`, `initial_points int check (>= 0)`, `created_at`, `updated_at`, `wallet_message
+  text check (char_length between 1 and 100)` (PR 10, set by `create_notification`). The Google
+  class ID is deterministic (`{GOOGLE_ISSUER_ID}.{program id}`), so it is not stored.
 - **`members`**: `id uuid`, `program_id → programs on delete cascade`, `email citext`,
   `first_name text`, `last_name text` (1–50 characters), `points int not null check (points >= 0)`
   (set from the program's welcome points on insert), `created_at`, `updated_at`;
@@ -382,8 +408,9 @@ auth.users ─1..n─ programs ─1..n─ members ─1..n─ wallet_passes ─n.
 - **`apple_devices`**: `id`, `device_library_identifier text unique`, `push_token text`,
   `created_at`, `updated_at`.
 - **`apple_registrations`**: `device_id`, `pass_id`, `created_at`, `pk (device_id, pass_id)`.
-- **`notifications`**: `id`, `program_id`, `message text check (char_length between 1 and 100)`,
-  `sent_by`, `created_at`, `delivered_count int`, `failed_count int`.
+- **`notifications`** (append-only, written by `create_notification`): `id bigint identity`,
+  `program_id`, `message text check (char_length between 1 and 100)`,
+  `sent_by uuid → auth.users on delete set null`, `created_at` (PR 10).
 
 SQL functions (`security invoker`, so RLS still applies):
 
@@ -393,8 +420,11 @@ SQL functions (`security invoker`, so RLS still applies):
   the passes as updated.
 - `list_members(program_id, search, after_created_at, after_id, page_size)`: a page of members,
   newest first, optionally filtered by name or email.
-- `create_notification(program_id, message, monthly_cap)`: locks the program row, checks the
-  24 h rule and the monthly cap, inserts, sets `programs.wallet_message`. No double send.
+- `create_notification(program_id, message, sent_by, monthly_cap)` (server only): locks the
+  program row, checks the 24 h rule and the monthly cap, inserts, sets `programs.wallet_message`.
+  No double send. `notification_usage(program_id)`: messages this month and the last send.
+- `list_program_apple_devices(program_id)` (server only): one row per device, with its passes of
+  the program.
 
 Also: `updated_at` triggers, indexes on every FK, `members (program_id, created_at, id)` for
 pagination, `pg_trgm` index for name / email search if needed. RLS: merchants (`to authenticated`)
@@ -408,7 +438,7 @@ data and streamed directly.
 
 ## Pages (file routes)
 
-The PR column says which PR ships each page; pages up to PR 9 exist.
+The PR column says which PR ships each page; pages up to PR 10 exist.
 
 | Route | Purpose | PR |
 | --- | --- | --- |
@@ -434,17 +464,18 @@ Merchant (`_authed` layout):
 
 ## Server functions and routes
 
-Done (PRs 5–9):
+Done (PRs 5–10):
 
 - `auth`: `signUp`, `signIn`, `signOut`, `requestPasswordReset`, `updatePassword`, `getCurrentUser`.
-- `programs`: `listPrograms`, `getProgram`, `createProgram`, `updateProgram`, `deleteProgram`.
+- `programs`: `listPrograms`, `getProgram`, `createProgram`, `updateProgram`, `deleteProgram`,
+  `retryProgramWalletSync`.
 - `members`: `issuePass`, `listAvailableWallets`, `listMembers`, `getMember`, `findMemberBySerial`,
   `adjustPoints`, `retryWalletSync`, `listTransactions`.
 - `enrollment` (public): `getPublicProgram`, `enroll`.
+- `notifications`: `getNotificationQuota`, `sendNotification`, `listNotifications`.
 
 To do:
 
-- `notifications` (PR 10): `getNotificationQuota`, `sendNotification`, `listNotifications`.
 - `account` (PR 11): `deleteAccount`.
 
 Server routes (external callers), all done (PRs 7–8):
