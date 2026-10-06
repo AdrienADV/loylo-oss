@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import {
 	createGoogleSaveUrl,
-	findLinkedPass,
+	findPassByToken,
 	parsePassLink,
 } from "#/features/members/wallet-passes.server";
 import { getOptionalGoogleWalletConfig } from "#/lib/config.server";
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/api/google/passes/$serialNumber")({
 				}
 
 				const supabase = createAdminClient();
-				const pass = await findLinkedPass(supabase, "google", link);
+				const pass = await findPassByToken(supabase, "google", link);
 				if (!pass) {
 					return textResponse(404, "This link is invalid.");
 				}
