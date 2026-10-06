@@ -1,6 +1,6 @@
 # Loylo OSS — MVP plan
 
-Status: **in progress**: PRs 1–8 merged, next is PR 9 (`feat/points`). See [Status and handoff](#status-and-handoff).
+Status: **in progress**: PRs 1–9 merged, next is PR 10 (`feat/marketing-notifications`). See [Status and handoff](#status-and-handoff).
 
 This document is the shared context for building Loylo OSS: what we build, what we decided,
 why, and in which order. Read it before starting any PR.
@@ -19,8 +19,9 @@ Read this section first when picking up the work in a new session.
 | 6 | `feat/programs` | #7 | merged |
 | 7 | `feat/enrollment` | #9 | merged |
 | 8 | `feat/wallet-web-services` | #10 | merged |
-| 9 | `feat/points` | — | **next** |
-| 10–11 | see [Pull requests](#pull-requests) | — | to do |
+| 9 | `feat/points` | #12 | merged |
+| 10 | `feat/marketing-notifications` | — | **next** |
+| 11 | see [Pull requests](#pull-requests) | — | to do |
 
 How the owner works: one PR at a time; the owner merges it (even while the Cloudflare build
 is red, see below) and says when to start the next one. Do not start the next PR without the go.
@@ -31,7 +32,8 @@ These refine or override the sections below.
 
 - **APNs runs in the Worker** (no Edge Function): deployed Workers reach APNs over HTTP/2
   through `fetch`; local workerd cannot, so pushes only work once deployed.
-- **`WalletProvider` interface** is defined in PR 9, where both wallets are first used together.
+- **The `WalletProvider` interface is `WalletSync`** (`src/features/wallet-sync/`): the name
+  `WalletProvider` already was the `'apple' | 'google'` type, after the `wallet_provider` enum.
 - **Only what is used**: `citext` and the `wallet_provider` enum arrived with PR 7,
   `wallet_passes.installed_at` / `uninstalled_at` with PR 8; `programs.wallet_message` arrives with
   PR 10. No `google_class_id` or `google_object_id` column: the class ID is
@@ -87,23 +89,48 @@ These refine or override the sections below.
 - **Apple devices are server only**: `apple_devices` / `apple_registrations` have RLS on, no
   policies, grants for `service_role` only; read push tokens with the admin client after checking
   the merchant's access with the user client.
+- **Points ledger written by triggers**: `point_transactions` rows only come from triggers on
+  `members` (`private.record_point_transaction`, security definer): `welcome` on insert (when the
+  program grants welcome points), `adjustment` on every change of `members.points`, with
+  `created_by = auth.uid()` (null for public enrollments). Merchants may update `members.points`
+  (column grant + RLS) but never write the ledger, so a member's deltas always add up to their
+  balance. `adjust_points` is one `update ... set points = points + delta` (no lost updates);
+  `members_points_check` refuses a negative balance, shown as "not enough points".
+- **Members list**: `list_members()` (security invoker) searches first name + last name and email
+  with `ilike` (`%`, `_` and `\` escaped) and pages newest first on `(created_at, id)`
+  (`members (program_id, created_at, id)` index). It returns `setof members`, so PostgREST embeds
+  the passes. The page cursor `{createdAt}_{id}` and the search live in the URL (`?after=`, `?q=`).
+- **Wallet sync**: `WalletSync.syncMemberPasses({ points, passIds })` per wallet;
+  `syncMemberWallets()` loads the member's passes with the user client (RLS), runs both wallets
+  and returns `synced | skipped | failed`. It never throws: the change is saved anyway, the member
+  page shows a retry button (`retryWalletSync`), and any later sync sends the current state. Apple:
+  one APNs push per device of the passes (admin client); `unregistered` removes that registration
+  (`unregister_apple_device`, which updates the install state). Google: `setLoyaltyPoints` on each
+  object; 404 (pass link never opened, the object is created then) counts as skipped. APNs is
+  optional (`getOptionalApplePushConfig`).
+- **Scanning**: `BarcodeDetector` when it reads QR codes, otherwise `jsqr`, loaded on demand
+  (Safari, Firefox, desktop Chrome). The "Card code" field also takes USB / Bluetooth barcode
+  scanners, which type the code. Serial numbers are matched case-insensitively.
+- **Dates** render in UTC on the server and in the viewer's time zone after hydration
+  (`FormattedDate`), which avoids hydration mismatches.
 
 ### Code map
 
 | Path | Content |
 | --- | --- |
-| `src/lib/config.server.ts` | Env validation with Zod, read per request (`getSupabaseConfig`, `getSupabaseAdminConfig`, `getAppleWalletConfig`, `getOptionalAppleWalletConfig`, `getApplePushConfig`, `getGoogleWalletConfig`, `getOptionalGoogleWalletConfig`) |
+| `src/lib/config.server.ts` | Env validation with Zod, read per request (`getSupabaseConfig`, `getSupabaseAdminConfig`, `getAppleWalletConfig`, `getOptionalAppleWalletConfig`, `getApplePushConfig`, `getOptionalApplePushConfig`, `getGoogleWalletConfig`, `getOptionalGoogleWalletConfig`) |
 | `src/lib/wallet/apple/` | `pass-json.ts` (pure builder), `pkpass.server.ts` (signing), `apns.server.ts` (pushes), `pkpass.server.test.ts` (the only test) |
 | `src/lib/wallet/google/` | `objects.ts` (class / object builders), `client.server.ts` (API client, save URL), `callback.server.ts` (callback verification) |
 | `src/lib/supabase/` | clients, `cookies.server.ts`, generated `database.types.ts` |
 | `src/lib/forms.ts`, `src/components/form-*.tsx` | `useSchemaForm` (Zod → field errors), `FormField`, `FormAlert` |
 | `src/features/auth/` | schemas, server helpers, `authMiddleware`, server functions, `AuthCard` |
 | `src/features/programs/` | schemas (`PROGRAM_IMAGES`), server helpers, server functions, `ProgramForm`, `PassPreview`, `ProgramCard` |
-| `src/features/members/` | shared member / wallet schemas, `issuePass`, `wallet-passes.server.ts` (pass links, `.pkpass` build, Google save link), `MemberPassForm` |
+| `src/features/members/` | member / wallet / points schemas, server functions (`issuePass`, members list, member, scan lookup, points, history), `members.server.ts` (views, install state), `wallet-passes.server.ts` (pass links, `.pkpass` build, Google save link), `MemberPassForm`, `MemberList`, `PointsForm`, `QrScanner`, `WalletStateBadge` |
+| `src/features/wallet-sync/` | `WalletSync` interface and `combineSyncResults` (`wallet-sync.ts`), Apple and Google implementations, `syncMemberWallets` |
 | `src/features/enrollment/` | public server functions `getPublicProgram`, `enroll` |
 | `src/lib/` (other) | `rate-limit.server.ts`, `supabase/errors.server.ts` (`databaseError`), `app-origin.ts` (isomorphic origin), `http.ts` |
-| `src/components/` | `qr-code.tsx` (SVG, `uqr`), `copy-button.tsx`, shadcn `ui/` |
-| `src/routes/_guest*`, `src/routes/_authed*` | signed-out and signed-in layouts and pages (program overview, share, issue a card, settings); `src/routes/auth/confirm.ts` |
+| `src/components/` | `qr-code.tsx` (SVG, `uqr`), `copy-button.tsx`, `formatted-date.tsx`, shadcn `ui/` |
+| `src/routes/_guest*`, `src/routes/_authed*` | signed-out and signed-in layouts and pages (program overview with members, member, scan, share, issue a card, settings); `src/routes/auth/confirm.ts` |
 | `src/routes/join/$programId.tsx` | public enrollment page |
 | `src/routes/api/{apple,google}/passes/$serialNumber.ts` | pass links |
 | `src/features/wallet-services/`, `src/routes/api/apple/v1/`, `src/routes/api/google/callback.ts` | Apple PassKit Web Service, Google save / delete callback |
@@ -131,14 +158,21 @@ Each PR so far was verified end to end before opening it. The environment used:
    Google service account exercises the Google error paths.
 5. `bun run dev`, then drive the app with Playwright and Chromium (`/opt/pw-browsers`), with
    scripts kept outside the repo. Mailpit (`http://127.0.0.1:54324`) receives auth emails; check
-   rows and RLS with `psql postgresql://postgres:postgres@127.0.0.1:54322/postgres`.
+   rows and RLS with `psql postgresql://postgres:postgres@127.0.0.1:54322/postgres`. Users can be
+   created confirmed through the Auth admin API (`POST /auth/v1/admin/users` with the secret key).
+   The scan page runs with a fake camera: Chromium's `--use-fake-device-for-media-stream
+   --use-file-for-fake-video-capture=card.y4m` with a Y4M video of a QR code (grayscale frames
+   drawn from `uqr` are enough). Wallet sync paths (APNs `410`, Google `404`) were checked with a
+   Bun script that imports `syncMemberWallets` and mocks `fetch` for Apple and Google only.
 6. Before pushing: `bunx tsc --noEmit`, Biome on the changed files, `bun run build` (and check that
    no server code ends up in `dist/client`), `bun run test`.
 
 Gotchas: the auth rate limiter blocks sign-in after 10 attempts per minute (space out scripted
-sign-ins); TanStack Router updates the URL before the next page renders (wait for content, not
-the URL); wait for `networkidle` before clicking, or forms submit natively before hydration; the
-TanStack devtools panel adds labelled elements, so select inputs by their `#field-*` id;
+sign-ins); the session cookie lands a moment after the dashboard shows (wait for it before the
+next `goto`); TanStack Router updates the URL before the next page renders (wait for content, not
+the URL); wait for `networkidle` before clicking, or forms submit natively before hydration, and
+abort `**/__tsd/**` requests first (the devtools' event stream never lets the network go idle);
+the TanStack devtools panel adds labelled elements, so select inputs by their `#field-*` id;
 `supabase.com`, `developers.google.com` and the shadcn registry may be unreachable from the
 agent environment: read Supabase docs from `raw.githubusercontent.com/supabase/supabase`, and
 generate shadcn components from the shadcn GitHub sources with the `base-luma` style
@@ -159,27 +193,31 @@ generate shadcn components from the shadcn GitHub sources with the `base-luma` s
   submit buttons until hydration.
 - Biome reports formatting issues in starter files (`biome.json` schema version, `button.tsx`,
   `router.tsx`, `__root.tsx`); they predate the project work and were left untouched.
-- **No pushes yet**: the Apple web service reports changed passes, but nothing sends APNs pushes
-  or patches Google objects after a change (PR 9). Google objects are refreshed whenever their pass
-  link is opened.
+- **Program edits are not pushed to Apple passes**: devices pick up a new name, color or logo
+  with the member's next points change (or when the holder refreshes the pass). Google passes
+  follow their class. PR 10 adds program-wide pushes and should use them for edits too.
+- **Locally, Apple pushes fail** (workerd has no HTTP/2, and the agent proxy answers `403`), so the
+  member page shows its "cards could not be updated" warning whenever an Apple device is
+  registered; Google syncs fail the same way with a fake service account.
 - **Real devices** need HTTPS for the Apple web service (or "Allow HTTP Services" in the iPhone's
   developer settings), real Apple certificates and a Google issuer account; APNs only works from a
   deployed Worker.
 
-### Notes for PR 9 (`feat/points`)
+### Notes for PR 10 (`feat/marketing-notifications`)
 
-- Migration `create_point_transactions`: `point_transactions` and `adjust_points()`, plus the
-  `members (program_id, created_at)` index for the members list. Updating `members.points` bumps
-  `members.updated_at`, which is enough to mark the member's passes as updated: `adjust_points`
-  does not need to touch `wallet_passes`.
-- Members list: show the install state (`installed_at` / `uninstalled_at`, readable by merchants).
-- Wallet sync after each change (the `WalletProvider` interface): Apple, push the devices
-  registered for the member's passes (`sendPassUpdatePushes`; push tokens through the admin client
-  once the user client has confirmed the member belongs to the merchant; an `unregistered` result
-  should remove that registration with `unregister_apple_device`). Google, `setLoyaltyPoints` on
-  `{GOOGLE_ISSUER_ID}.{wallet pass id}` (the object only exists once its pass link was opened).
-  Program edits could push every pass of the program the same way.
-- The scan page reads the QR code: the serial number.
+- Migration `create_notifications`: `programs.wallet_message`, `notifications` and
+  `create_notification()` (locks the program row, 24 h rule, monthly cap from
+  `NOTIFICATIONS_MONTHLY_CAP`).
+- Apple: `buildApplePassJson` already takes `program.message` (`createApplePassFile` passes
+  `null` today); its back field has `changeMessage: "%@"`, so a new message shows as a
+  notification once the pass is downloaded again. Updating `programs` bumps `updated_at`, which
+  marks every pass of the program as updated for the web service.
+- Add a program-level method to `WalletSync` (e.g. `syncProgramPasses`): Apple pushes every device
+  registered for the program's passes, Google `addLoyaltyClassMessage` (a message) or the class
+  upsert (`syncGoogleLoyaltyClass`, an edit). Use it in `updateProgram` too (see known issues).
+- Fan-out: page through the registrations (PostgREST returns at most `max_rows = 1000` rows),
+  send one push per distinct push token (all passes share one pass type), and mind the Workers
+  subrequest limits (see Platform constraints).
 
 ## Context
 
@@ -337,8 +375,10 @@ auth.users ─1..n─ programs ─1..n─ members ─1..n─ wallet_passes ─n.
   `updated_at`, `installed_at timestamptz`, `uninstalled_at timestamptz` (PR 8). The content
   version that drives Apple `passesUpdatedSince` / `Last-Modified` comes from the member and the
   program (see the decisions above).
-- **`point_transactions`** (append-only, no update / delete policy): `id bigint identity`,
-  `member_id`, `delta int check (delta <> 0)`, `balance_after int`, `created_by uuid`, `created_at`.
+- **`point_transactions`** (append-only, written by triggers on `members`, select-only for
+  merchants): `id bigint identity`, `member_id`, `kind point_transaction_kind ('welcome' |
+  'adjustment')`, `delta int check (delta <> 0)`, `balance_after int check (>= 0)`,
+  `created_by uuid → auth.users on delete set null`, `created_at` (PR 9).
 - **`apple_devices`**: `id`, `device_library_identifier text unique`, `push_token text`,
   `created_at`, `updated_at`.
 - **`apple_registrations`**: `device_id`, `pass_id`, `created_at`, `pk (device_id, pass_id)`.
@@ -348,12 +388,15 @@ auth.users ─1..n─ programs ─1..n─ members ─1..n─ wallet_passes ─n.
 SQL functions (`security invoker`, so RLS still applies):
 
 - `adjust_points(member_id, delta)`: one `update members set points = points + delta ... returning`
-  (the check constraint rejects negative balances), inserts the ledger row, returns the new
-  balance. No lost updates. The new `members.updated_at` marks the passes as updated.
+  (the check constraint rejects negative balances), returns the new balance (null for a foreign
+  member). No lost updates. A trigger writes the ledger row; the new `members.updated_at` marks
+  the passes as updated.
+- `list_members(program_id, search, after_created_at, after_id, page_size)`: a page of members,
+  newest first, optionally filtered by name or email.
 - `create_notification(program_id, message, monthly_cap)`: locks the program row, checks the
   24 h rule and the monthly cap, inserts, sets `programs.wallet_message`. No double send.
 
-Also: `updated_at` triggers, indexes on every FK, `members (program_id, created_at)` for
+Also: `updated_at` triggers, indexes on every FK, `members (program_id, created_at, id)` for
 pagination, `pg_trgm` index for name / email search if needed. RLS: merchants (`to authenticated`)
 reach rows whose program has `owner_id = (select auth.uid())`; `apple_*` tables have RLS on and
 no policies (server-only).
@@ -365,7 +408,7 @@ data and streamed directly.
 
 ## Pages (file routes)
 
-The PR column says which PR ships each page; pages up to PR 8 exist.
+The PR column says which PR ships each page; pages up to PR 9 exist.
 
 | Route | Purpose | PR |
 | --- | --- | --- |
@@ -380,7 +423,7 @@ Merchant (`_authed` layout):
 | --- | --- | --- |
 | `/dashboard` | List of programs, "create" CTA | 6 |
 | `/programs/new` | Create a program with live pass preview | 6 |
-| `/programs/$programId` | Today: pass preview, "Issue a card" and share links. PR 9: members list (search, install state, pagination) | 6 / 9 |
+| `/programs/$programId` | Members list (search, install state, pagination), pass preview, scan / issue / share links | 6 / 9 |
 | `/programs/$programId/members/new` | Issue a pass manually (QR code of the pass link) | 7 |
 | `/programs/$programId/members/$memberId` | Balance, add / redeem points, history | 9 |
 | `/programs/$programId/scan` | Camera QR scan (`BarcodeDetector` with a JS fallback) | 9 |
@@ -391,16 +434,16 @@ Merchant (`_authed` layout):
 
 ## Server functions and routes
 
-Done (PRs 5–7):
+Done (PRs 5–9):
 
 - `auth`: `signUp`, `signIn`, `signOut`, `requestPasswordReset`, `updatePassword`, `getCurrentUser`.
 - `programs`: `listPrograms`, `getProgram`, `createProgram`, `updateProgram`, `deleteProgram`.
-- `members`: `issuePass`, `listAvailableWallets`.
+- `members`: `issuePass`, `listAvailableWallets`, `listMembers`, `getMember`, `findMemberBySerial`,
+  `adjustPoints`, `retryWalletSync`, `listTransactions`.
 - `enrollment` (public): `getPublicProgram`, `enroll`.
 
 To do:
 
-- `members` (PR 9): `listMembers`, `getMember`, `findMemberBySerial`, `adjustPoints`, `listTransactions`.
 - `notifications` (PR 10): `getNotificationQuota`, `sendNotification`, `listNotifications`.
 - `account` (PR 11): `deleteAccount`.
 
