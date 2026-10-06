@@ -177,6 +177,52 @@ export async function removeProgramImages(
 	}
 }
 
+/** Storage lists and removes files a page at a time. */
+const STORAGE_PAGE_SIZE = 100;
+
+/** Paths of every file under `folder`, in its subfolders too. */
+async function listFiles(
+	supabase: Supabase,
+	folder: string,
+): Promise<string[]> {
+	const paths: string[] = [];
+	for (let offset = 0; ; offset += STORAGE_PAGE_SIZE) {
+		const { data, error } = await supabase.storage
+			.from(BUCKET)
+			.list(folder, { limit: STORAGE_PAGE_SIZE, offset });
+		if (error) {
+			throw new Error(`Could not list ${folder}: ${error.message}`);
+		}
+		for (const item of data) {
+			const path = `${folder}/${item.name}`;
+			// Folders are listed without an ID.
+			paths.push(...(item.id ? [path] : await listFiles(supabase, path)));
+		}
+		if (data.length < STORAGE_PAGE_SIZE) {
+			return paths;
+		}
+	}
+}
+
+/**
+ * Removes every image the owner uploaded, leftovers of failed removals
+ * included (`{owner}/...`). Throws when a file cannot be removed.
+ */
+export async function removeOwnerImages(
+	supabase: Supabase,
+	ownerId: string,
+): Promise<void> {
+	const paths = await listFiles(supabase, ownerId);
+	for (let start = 0; start < paths.length; start += STORAGE_PAGE_SIZE) {
+		const { error } = await supabase.storage
+			.from(BUCKET)
+			.remove(paths.slice(start, start + STORAGE_PAGE_SIZE));
+		if (error) {
+			throw new Error(`Could not remove the images: ${error.message}`);
+		}
+	}
+}
+
 /**
  * Creates or updates the program's Google Wallet class. Never throws: the
  * program is saved either way, and saving it again retries the sync.
