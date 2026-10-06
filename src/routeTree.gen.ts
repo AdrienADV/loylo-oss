@@ -18,8 +18,12 @@ import { Route as GuestForgotPasswordRouteImport } from './routes/_guest/forgot-
 import { Route as GuestLoginRouteImport } from './routes/_guest/login'
 import { Route as GuestSignupRouteImport } from './routes/_guest/signup'
 import { Route as AuthConfirmRouteImport } from './routes/auth/confirm'
+import { Route as AuthedProgramsProgramIdRouteImport } from './routes/_authed/programs/$programId'
+import { Route as AuthedProgramsNewRouteImport } from './routes/_authed/programs/new'
 import { Route as ApiDemoApplePassRouteImport } from './routes/api/demo/apple-pass'
 import { Route as ApiDemoGooglePassRouteImport } from './routes/api/demo/google-pass'
+import { Route as AuthedProgramsProgramIdIndexRouteImport } from './routes/_authed/programs/$programId/index'
+import { Route as AuthedProgramsProgramIdSettingsRouteImport } from './routes/_authed/programs/$programId/settings'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -64,6 +68,16 @@ const AuthConfirmRoute = AuthConfirmRouteImport.update({
   path: '/auth/confirm',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthedProgramsProgramIdRoute = AuthedProgramsProgramIdRouteImport.update({
+  id: '/programs/$programId',
+  path: '/programs/$programId',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedProgramsNewRoute = AuthedProgramsNewRouteImport.update({
+  id: '/programs/new',
+  path: '/programs/new',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const ApiDemoApplePassRoute = ApiDemoApplePassRouteImport.update({
   id: '/api/demo/apple-pass',
   path: '/api/demo/apple-pass',
@@ -74,6 +88,18 @@ const ApiDemoGooglePassRoute = ApiDemoGooglePassRouteImport.update({
   path: '/api/demo/google-pass',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthedProgramsProgramIdIndexRoute =
+  AuthedProgramsProgramIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthedProgramsProgramIdRoute,
+  } as any)
+const AuthedProgramsProgramIdSettingsRoute =
+  AuthedProgramsProgramIdSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthedProgramsProgramIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -83,8 +109,12 @@ export interface FileRoutesByFullPath {
   '/login': typeof GuestLoginRoute
   '/signup': typeof GuestSignupRoute
   '/auth/confirm': typeof AuthConfirmRoute
+  '/programs/$programId': typeof AuthedProgramsProgramIdRouteWithChildren
+  '/programs/new': typeof AuthedProgramsNewRoute
   '/api/demo/apple-pass': typeof ApiDemoApplePassRoute
   '/api/demo/google-pass': typeof ApiDemoGooglePassRoute
+  '/programs/$programId/settings': typeof AuthedProgramsProgramIdSettingsRoute
+  '/programs/$programId/': typeof AuthedProgramsProgramIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -94,8 +124,11 @@ export interface FileRoutesByTo {
   '/login': typeof GuestLoginRoute
   '/signup': typeof GuestSignupRoute
   '/auth/confirm': typeof AuthConfirmRoute
+  '/programs/new': typeof AuthedProgramsNewRoute
   '/api/demo/apple-pass': typeof ApiDemoApplePassRoute
   '/api/demo/google-pass': typeof ApiDemoGooglePassRoute
+  '/programs/$programId/settings': typeof AuthedProgramsProgramIdSettingsRoute
+  '/programs/$programId': typeof AuthedProgramsProgramIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -108,8 +141,12 @@ export interface FileRoutesById {
   '/_guest/login': typeof GuestLoginRoute
   '/_guest/signup': typeof GuestSignupRoute
   '/auth/confirm': typeof AuthConfirmRoute
+  '/_authed/programs/$programId': typeof AuthedProgramsProgramIdRouteWithChildren
+  '/_authed/programs/new': typeof AuthedProgramsNewRoute
   '/api/demo/apple-pass': typeof ApiDemoApplePassRoute
   '/api/demo/google-pass': typeof ApiDemoGooglePassRoute
+  '/_authed/programs/$programId/settings': typeof AuthedProgramsProgramIdSettingsRoute
+  '/_authed/programs/$programId/': typeof AuthedProgramsProgramIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -121,8 +158,12 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/auth/confirm'
+    | '/programs/$programId'
+    | '/programs/new'
     | '/api/demo/apple-pass'
     | '/api/demo/google-pass'
+    | '/programs/$programId/settings'
+    | '/programs/$programId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -132,8 +173,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/auth/confirm'
+    | '/programs/new'
     | '/api/demo/apple-pass'
     | '/api/demo/google-pass'
+    | '/programs/$programId/settings'
+    | '/programs/$programId'
   id:
     | '__root__'
     | '/'
@@ -145,8 +189,12 @@ export interface FileRouteTypes {
     | '/_guest/login'
     | '/_guest/signup'
     | '/auth/confirm'
+    | '/_authed/programs/$programId'
+    | '/_authed/programs/new'
     | '/api/demo/apple-pass'
     | '/api/demo/google-pass'
+    | '/_authed/programs/$programId/settings'
+    | '/_authed/programs/$programId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -223,6 +271,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthConfirmRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed/programs/$programId': {
+      id: '/_authed/programs/$programId'
+      path: '/programs/$programId'
+      fullPath: '/programs/$programId'
+      preLoaderRoute: typeof AuthedProgramsProgramIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/programs/new': {
+      id: '/_authed/programs/new'
+      path: '/programs/new'
+      fullPath: '/programs/new'
+      preLoaderRoute: typeof AuthedProgramsNewRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/api/demo/apple-pass': {
       id: '/api/demo/apple-pass'
       path: '/api/demo/apple-pass'
@@ -237,17 +299,51 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDemoGooglePassRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed/programs/$programId/': {
+      id: '/_authed/programs/$programId/'
+      path: '/'
+      fullPath: '/programs/$programId/'
+      preLoaderRoute: typeof AuthedProgramsProgramIdIndexRouteImport
+      parentRoute: typeof AuthedProgramsProgramIdRoute
+    }
+    '/_authed/programs/$programId/settings': {
+      id: '/_authed/programs/$programId/settings'
+      path: '/settings'
+      fullPath: '/programs/$programId/settings'
+      preLoaderRoute: typeof AuthedProgramsProgramIdSettingsRouteImport
+      parentRoute: typeof AuthedProgramsProgramIdRoute
+    }
   }
 }
+
+interface AuthedProgramsProgramIdRouteChildren {
+  AuthedProgramsProgramIdSettingsRoute: typeof AuthedProgramsProgramIdSettingsRoute
+  AuthedProgramsProgramIdIndexRoute: typeof AuthedProgramsProgramIdIndexRoute
+}
+
+const AuthedProgramsProgramIdRouteChildren: AuthedProgramsProgramIdRouteChildren =
+  {
+    AuthedProgramsProgramIdSettingsRoute: AuthedProgramsProgramIdSettingsRoute,
+    AuthedProgramsProgramIdIndexRoute: AuthedProgramsProgramIdIndexRoute,
+  }
+
+const AuthedProgramsProgramIdRouteWithChildren =
+  AuthedProgramsProgramIdRoute._addFileChildren(
+    AuthedProgramsProgramIdRouteChildren,
+  )
 
 interface AuthedRouteChildren {
   AuthedDashboardRoute: typeof AuthedDashboardRoute
   AuthedResetPasswordRoute: typeof AuthedResetPasswordRoute
+  AuthedProgramsProgramIdRoute: typeof AuthedProgramsProgramIdRouteWithChildren
+  AuthedProgramsNewRoute: typeof AuthedProgramsNewRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedDashboardRoute: AuthedDashboardRoute,
   AuthedResetPasswordRoute: AuthedResetPasswordRoute,
+  AuthedProgramsProgramIdRoute: AuthedProgramsProgramIdRouteWithChildren,
+  AuthedProgramsNewRoute: AuthedProgramsNewRoute,
 }
 
 const AuthedRouteWithChildren =
