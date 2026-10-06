@@ -13,3 +13,11 @@ export function isUniqueViolation(
 ): boolean {
 	return error.code === "23505" && error.message.includes(`"${constraint}"`);
 }
+
+/** Whether `error` comes from the check constraint named `constraint`. */
+export function isCheckViolation(
+	error: PostgrestError,
+	constraint: string,
+): boolean {
+	return error.code === "23514" && error.message.includes(`"${constraint}"`);
+}
