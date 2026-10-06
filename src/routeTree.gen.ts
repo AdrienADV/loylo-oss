@@ -10,12 +10,58 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthedRouteImport } from './routes/_authed'
+import { Route as GuestRouteImport } from './routes/_guest'
+import { Route as AuthedDashboardRouteImport } from './routes/_authed/dashboard'
+import { Route as AuthedResetPasswordRouteImport } from './routes/_authed/reset-password'
+import { Route as GuestForgotPasswordRouteImport } from './routes/_guest/forgot-password'
+import { Route as GuestLoginRouteImport } from './routes/_guest/login'
+import { Route as GuestSignupRouteImport } from './routes/_guest/signup'
+import { Route as AuthConfirmRouteImport } from './routes/auth/confirm'
 import { Route as ApiDemoApplePassRouteImport } from './routes/api/demo/apple-pass'
 import { Route as ApiDemoGooglePassRouteImport } from './routes/api/demo/google-pass'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedRoute = AuthedRouteImport.update({
+  id: '/_authed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuestRoute = GuestRouteImport.update({
+  id: '/_guest',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedDashboardRoute = AuthedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedResetPasswordRoute = AuthedResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const GuestForgotPasswordRoute = GuestForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => GuestRoute,
+} as any)
+const GuestLoginRoute = GuestLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => GuestRoute,
+} as any)
+const GuestSignupRoute = GuestSignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => GuestRoute,
+} as any)
+const AuthConfirmRoute = AuthConfirmRouteImport.update({
+  id: '/auth/confirm',
+  path: '/auth/confirm',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiDemoApplePassRoute = ApiDemoApplePassRouteImport.update({
@@ -31,30 +77,83 @@ const ApiDemoGooglePassRoute = ApiDemoGooglePassRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dashboard': typeof AuthedDashboardRoute
+  '/reset-password': typeof AuthedResetPasswordRoute
+  '/forgot-password': typeof GuestForgotPasswordRoute
+  '/login': typeof GuestLoginRoute
+  '/signup': typeof GuestSignupRoute
+  '/auth/confirm': typeof AuthConfirmRoute
   '/api/demo/apple-pass': typeof ApiDemoApplePassRoute
   '/api/demo/google-pass': typeof ApiDemoGooglePassRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dashboard': typeof AuthedDashboardRoute
+  '/reset-password': typeof AuthedResetPasswordRoute
+  '/forgot-password': typeof GuestForgotPasswordRoute
+  '/login': typeof GuestLoginRoute
+  '/signup': typeof GuestSignupRoute
+  '/auth/confirm': typeof AuthConfirmRoute
   '/api/demo/apple-pass': typeof ApiDemoApplePassRoute
   '/api/demo/google-pass': typeof ApiDemoGooglePassRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authed': typeof AuthedRouteWithChildren
+  '/_guest': typeof GuestRouteWithChildren
+  '/_authed/dashboard': typeof AuthedDashboardRoute
+  '/_authed/reset-password': typeof AuthedResetPasswordRoute
+  '/_guest/forgot-password': typeof GuestForgotPasswordRoute
+  '/_guest/login': typeof GuestLoginRoute
+  '/_guest/signup': typeof GuestSignupRoute
+  '/auth/confirm': typeof AuthConfirmRoute
   '/api/demo/apple-pass': typeof ApiDemoApplePassRoute
   '/api/demo/google-pass': typeof ApiDemoGooglePassRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/demo/apple-pass' | '/api/demo/google-pass'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/reset-password'
+    | '/forgot-password'
+    | '/login'
+    | '/signup'
+    | '/auth/confirm'
+    | '/api/demo/apple-pass'
+    | '/api/demo/google-pass'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/demo/apple-pass' | '/api/demo/google-pass'
-  id: '__root__' | '/' | '/api/demo/apple-pass' | '/api/demo/google-pass'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/reset-password'
+    | '/forgot-password'
+    | '/login'
+    | '/signup'
+    | '/auth/confirm'
+    | '/api/demo/apple-pass'
+    | '/api/demo/google-pass'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authed'
+    | '/_guest'
+    | '/_authed/dashboard'
+    | '/_authed/reset-password'
+    | '/_guest/forgot-password'
+    | '/_guest/login'
+    | '/_guest/signup'
+    | '/auth/confirm'
+    | '/api/demo/apple-pass'
+    | '/api/demo/google-pass'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthedRoute: typeof AuthedRouteWithChildren
+  GuestRoute: typeof GuestRouteWithChildren
+  AuthConfirmRoute: typeof AuthConfirmRoute
   ApiDemoApplePassRoute: typeof ApiDemoApplePassRoute
   ApiDemoGooglePassRoute: typeof ApiDemoGooglePassRoute
 }
@@ -66,6 +165,62 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authed': {
+      id: '/_authed'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_guest': {
+      id: '/_guest'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof GuestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authed/dashboard': {
+      id: '/_authed/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthedDashboardRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/reset-password': {
+      id: '/_authed/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof AuthedResetPasswordRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_guest/forgot-password': {
+      id: '/_guest/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof GuestForgotPasswordRouteImport
+      parentRoute: typeof GuestRoute
+    }
+    '/_guest/login': {
+      id: '/_guest/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof GuestLoginRouteImport
+      parentRoute: typeof GuestRoute
+    }
+    '/_guest/signup': {
+      id: '/_guest/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof GuestSignupRouteImport
+      parentRoute: typeof GuestRoute
+    }
+    '/auth/confirm': {
+      id: '/auth/confirm'
+      path: '/auth/confirm'
+      fullPath: '/auth/confirm'
+      preLoaderRoute: typeof AuthConfirmRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/demo/apple-pass': {
@@ -85,8 +240,38 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthedRouteChildren {
+  AuthedDashboardRoute: typeof AuthedDashboardRoute
+  AuthedResetPasswordRoute: typeof AuthedResetPasswordRoute
+}
+
+const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedDashboardRoute: AuthedDashboardRoute,
+  AuthedResetPasswordRoute: AuthedResetPasswordRoute,
+}
+
+const AuthedRouteWithChildren =
+  AuthedRoute._addFileChildren(AuthedRouteChildren)
+
+interface GuestRouteChildren {
+  GuestForgotPasswordRoute: typeof GuestForgotPasswordRoute
+  GuestLoginRoute: typeof GuestLoginRoute
+  GuestSignupRoute: typeof GuestSignupRoute
+}
+
+const GuestRouteChildren: GuestRouteChildren = {
+  GuestForgotPasswordRoute: GuestForgotPasswordRoute,
+  GuestLoginRoute: GuestLoginRoute,
+  GuestSignupRoute: GuestSignupRoute,
+}
+
+const GuestRouteWithChildren = GuestRoute._addFileChildren(GuestRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthedRoute: AuthedRouteWithChildren,
+  GuestRoute: GuestRouteWithChildren,
+  AuthConfirmRoute: AuthConfirmRoute,
   ApiDemoApplePassRoute: ApiDemoApplePassRoute,
   ApiDemoGooglePassRoute: ApiDemoGooglePassRoute,
 }
@@ -95,10 +280,11 @@ export const routeTree = rootRouteImport
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }
