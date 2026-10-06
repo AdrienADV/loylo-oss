@@ -5,6 +5,7 @@ import {
 	buildLoyaltyPoints,
 	type GoogleLoyaltyClass,
 	type GoogleLoyaltyObject,
+	type GoogleMessage,
 } from "#/lib/wallet/google/objects";
 
 /** Google Wallet REST API, authenticated with a service account. */
@@ -161,20 +162,19 @@ export function createGoogleWalletClient(serviceAccount: GoogleServiceAccount) {
 		},
 
 		/**
-		 * Shows a message on every pass of the class and notifies their holders.
-		 * Google allows at most 3 notifications per pass every 24 hours.
+		 * Adds a message to every pass of the class; `TEXT_AND_NOTIFY` also
+		 * notifies their holders. Google allows at most 3 notifications per pass
+		 * every 24 hours, and 10 messages per class.
 		 */
 		async addLoyaltyClassMessage(
 			classId: string,
-			message: { header: string; body: string },
+			message: GoogleMessage,
 		): Promise<void> {
 			await expectOk(
 				await request(
 					"POST",
 					`/loyaltyClass/${encodeURIComponent(classId)}/addMessage`,
-					{
-						message: { ...message, messageType: "TEXT_AND_NOTIFY" },
-					},
+					{ message },
 				),
 			);
 		},

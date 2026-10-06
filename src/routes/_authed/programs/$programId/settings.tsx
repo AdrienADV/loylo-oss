@@ -37,11 +37,11 @@ function ProgramSettingsPage() {
 					pendingLabel="Saving…"
 					onSubmit={async (formData) => {
 						formData.set("programId", program.id);
-						const { googleWallet } = await updateProgramFn({ data: formData });
+						const { walletSync } = await updateProgramFn({ data: formData });
 						await router.invalidate();
 						setNotice(
-							googleWallet === "failed"
-								? "Changes saved, but Google Wallet could not be updated. Save again to retry."
+							walletSync === "failed"
+								? "Changes saved, but some wallet cards could not be updated. Save again to retry."
 								: "Changes saved.",
 						);
 					}}

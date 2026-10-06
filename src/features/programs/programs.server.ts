@@ -20,6 +20,7 @@ type ProgramRow = Pick<
 	| "background_color"
 	| "initial_points"
 	| "logo_path"
+	| "wallet_message"
 	| "created_at"
 >;
 export type ProgramImages = Record<ProgramImageName, Uint8Array<ArrayBuffer>>;
@@ -28,7 +29,7 @@ const BUCKET = "program-assets";
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
 export const PROGRAM_COLUMNS =
-	"id, name, background_color, initial_points, logo_path, created_at" as const;
+	"id, name, background_color, initial_points, logo_path, wallet_message, created_at" as const;
 
 /** What the browser receives: no storage paths, ready-to-use image URLs. */
 export interface ProgramView {
@@ -37,6 +38,8 @@ export interface ProgramView {
 	backgroundColor: string;
 	initialPoints: number;
 	logoUrl: string | null;
+	/** Latest message sent to the program's passes. */
+	walletMessage: string | null;
 	createdAt: string;
 }
 
@@ -57,6 +60,7 @@ export function toProgramView(
 		logoUrl: row.logo_path
 			? imageUrl(supabase, row.logo_path, "apple-logo@2x.png")
 			: null,
+		walletMessage: row.wallet_message,
 		createdAt: row.created_at,
 	};
 }
@@ -179,7 +183,10 @@ export async function removeProgramImages(
  */
 export async function syncGoogleLoyaltyClass(
 	supabase: Supabase,
-	row: Pick<ProgramRow, "id" | "name" | "background_color" | "logo_path">,
+	row: Pick<
+		ProgramRow,
+		"id" | "name" | "background_color" | "logo_path" | "wallet_message"
+	>,
 ): Promise<WalletSyncResult> {
 	const config = getOptionalGoogleWalletConfig();
 	if (!config || !row.logo_path) {
@@ -192,6 +199,7 @@ export async function syncGoogleLoyaltyClass(
 				programName: row.name,
 				backgroundColor: row.background_color,
 				logoUrl: imageUrl(supabase, row.logo_path, "google-logo.png"),
+				message: row.wallet_message,
 			},
 			config,
 		);

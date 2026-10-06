@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type {
+	ProgramToSync,
 	WalletSync,
 	WalletSyncResult,
 } from "#/features/wallet-sync/wallet-sync";
@@ -21,6 +22,9 @@ import { sendPassUpdatePushes } from "#/lib/wallet/apple/apns.server";
  */
 
 type Supabase = SupabaseClient<Database>;
+
+/** The Data API returns at most this many rows per request (`max_rows`). */
+const DEVICES_PAGE_SIZE = 1000;
 
 interface Registration {
 	pass_id: string;
@@ -91,6 +95,56 @@ async function pushToDevices(
 	return "synced";
 }
 
+/** Every registration of the program's passes, a page of devices at a time. */
+async function listProgramRegistrations(
+	supabase: Supabase,
+	programId: string,
+): Promise<Registration[] | null> {
+	const registrations: Registration[] = [];
+	for (let from = 0; ; from += DEVICES_PAGE_SIZE) {
+		const { data, error } = await supabase
+			.rpc("list_program_apple_devices", { program_id: programId })
+			.range(from, from + DEVICES_PAGE_SIZE - 1);
+		if (error) {
+			console.error(
+				"Could not load the program's Apple devices",
+				error.code,
+				error.message,
+			);
+			return null;
+		}
+		for (const { pass_ids, ...device } of data) {
+			for (const passId of pass_ids) {
+				registrations.push({ pass_id: passId, device });
+			}
+		}
+		if (data.length < DEVICES_PAGE_SIZE) {
+			return registrations;
+		}
+	}
+}
+
+/**
+ * Pushes every device holding a pass of the program. Each push is one
+ * request: a Worker's subrequest limit bounds how many devices one call reaches.
+ */
+async function syncProgramPasses(
+	_supabase: Supabase,
+	program: ProgramToSync,
+): Promise<WalletSyncResult> {
+	const config = getOptionalApplePushConfig();
+	if (!config) {
+		return "skipped";
+	}
+
+	const supabase = createAdminClient();
+	const registrations = await listProgramRegistrations(supabase, program.id);
+	if (!registrations) {
+		return "failed";
+	}
+	return pushToDevices(supabase, registrations, config);
+}
+
 export const appleWalletSync: WalletSync = {
 	async syncMemberPasses({ passIds }) {
 		const config = getOptionalApplePushConfig();
@@ -115,4 +169,10 @@ export const appleWalletSync: WalletSync = {
 		}
 		return pushToDevices(supabase, data, config);
 	},
+
+	syncProgramPasses,
+
+	// The pass's message field has a change message: when a device downloads
+	// the pass with the new message, Wallet shows it as a notification.
+	sendProgramMessage: syncProgramPasses,
 };

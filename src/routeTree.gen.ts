@@ -23,6 +23,7 @@ import { Route as AuthedProgramsProgramIdRouteImport } from './routes/_authed/pr
 import { Route as AuthedProgramsNewRouteImport } from './routes/_authed/programs/new'
 import { Route as ApiGoogleCallbackRouteImport } from './routes/api/google/callback'
 import { Route as AuthedProgramsProgramIdIndexRouteImport } from './routes/_authed/programs/$programId/index'
+import { Route as AuthedProgramsProgramIdNotificationsRouteImport } from './routes/_authed/programs/$programId/notifications'
 import { Route as AuthedProgramsProgramIdScanRouteImport } from './routes/_authed/programs/$programId/scan'
 import { Route as AuthedProgramsProgramIdSettingsRouteImport } from './routes/_authed/programs/$programId/settings'
 import { Route as AuthedProgramsProgramIdShareRouteImport } from './routes/_authed/programs/$programId/share'
@@ -102,6 +103,12 @@ const AuthedProgramsProgramIdIndexRoute =
   AuthedProgramsProgramIdIndexRouteImport.update({
     id: '/',
     path: '/',
+    getParentRoute: () => AuthedProgramsProgramIdRoute,
+  } as any)
+const AuthedProgramsProgramIdNotificationsRoute =
+  AuthedProgramsProgramIdNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
     getParentRoute: () => AuthedProgramsProgramIdRoute,
   } as any)
 const AuthedProgramsProgramIdScanRoute =
@@ -186,6 +193,7 @@ export interface FileRoutesByFullPath {
   '/programs/$programId': typeof AuthedProgramsProgramIdRouteWithChildren
   '/programs/new': typeof AuthedProgramsNewRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
+  '/programs/$programId/notifications': typeof AuthedProgramsProgramIdNotificationsRoute
   '/programs/$programId/scan': typeof AuthedProgramsProgramIdScanRoute
   '/programs/$programId/settings': typeof AuthedProgramsProgramIdSettingsRoute
   '/programs/$programId/share': typeof AuthedProgramsProgramIdShareRoute
@@ -210,6 +218,7 @@ export interface FileRoutesByTo {
   '/join/$programId': typeof JoinProgramIdRoute
   '/programs/new': typeof AuthedProgramsNewRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
+  '/programs/$programId/notifications': typeof AuthedProgramsProgramIdNotificationsRoute
   '/programs/$programId/scan': typeof AuthedProgramsProgramIdScanRoute
   '/programs/$programId/settings': typeof AuthedProgramsProgramIdSettingsRoute
   '/programs/$programId/share': typeof AuthedProgramsProgramIdShareRoute
@@ -238,6 +247,7 @@ export interface FileRoutesById {
   '/_authed/programs/$programId': typeof AuthedProgramsProgramIdRouteWithChildren
   '/_authed/programs/new': typeof AuthedProgramsNewRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
+  '/_authed/programs/$programId/notifications': typeof AuthedProgramsProgramIdNotificationsRoute
   '/_authed/programs/$programId/scan': typeof AuthedProgramsProgramIdScanRoute
   '/_authed/programs/$programId/settings': typeof AuthedProgramsProgramIdSettingsRoute
   '/_authed/programs/$programId/share': typeof AuthedProgramsProgramIdShareRoute
@@ -265,6 +275,7 @@ export interface FileRouteTypes {
     | '/programs/$programId'
     | '/programs/new'
     | '/api/google/callback'
+    | '/programs/$programId/notifications'
     | '/programs/$programId/scan'
     | '/programs/$programId/settings'
     | '/programs/$programId/share'
@@ -289,6 +300,7 @@ export interface FileRouteTypes {
     | '/join/$programId'
     | '/programs/new'
     | '/api/google/callback'
+    | '/programs/$programId/notifications'
     | '/programs/$programId/scan'
     | '/programs/$programId/settings'
     | '/programs/$programId/share'
@@ -316,6 +328,7 @@ export interface FileRouteTypes {
     | '/_authed/programs/$programId'
     | '/_authed/programs/new'
     | '/api/google/callback'
+    | '/_authed/programs/$programId/notifications'
     | '/_authed/programs/$programId/scan'
     | '/_authed/programs/$programId/settings'
     | '/_authed/programs/$programId/share'
@@ -445,6 +458,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedProgramsProgramIdIndexRouteImport
       parentRoute: typeof AuthedProgramsProgramIdRoute
     }
+    '/_authed/programs/$programId/notifications': {
+      id: '/_authed/programs/$programId/notifications'
+      path: '/notifications'
+      fullPath: '/programs/$programId/notifications'
+      preLoaderRoute: typeof AuthedProgramsProgramIdNotificationsRouteImport
+      parentRoute: typeof AuthedProgramsProgramIdRoute
+    }
     '/_authed/programs/$programId/scan': {
       id: '/_authed/programs/$programId/scan'
       path: '/scan'
@@ -526,6 +546,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedProgramsProgramIdRouteChildren {
+  AuthedProgramsProgramIdNotificationsRoute: typeof AuthedProgramsProgramIdNotificationsRoute
   AuthedProgramsProgramIdScanRoute: typeof AuthedProgramsProgramIdScanRoute
   AuthedProgramsProgramIdSettingsRoute: typeof AuthedProgramsProgramIdSettingsRoute
   AuthedProgramsProgramIdShareRoute: typeof AuthedProgramsProgramIdShareRoute
@@ -536,6 +557,8 @@ interface AuthedProgramsProgramIdRouteChildren {
 
 const AuthedProgramsProgramIdRouteChildren: AuthedProgramsProgramIdRouteChildren =
   {
+    AuthedProgramsProgramIdNotificationsRoute:
+      AuthedProgramsProgramIdNotificationsRoute,
     AuthedProgramsProgramIdScanRoute: AuthedProgramsProgramIdScanRoute,
     AuthedProgramsProgramIdSettingsRoute: AuthedProgramsProgramIdSettingsRoute,
     AuthedProgramsProgramIdShareRoute: AuthedProgramsProgramIdShareRoute,

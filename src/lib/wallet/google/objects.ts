@@ -25,6 +25,8 @@ export const loyaltyClassInputSchema = z.object({
 	backgroundColor: hexColorSchema,
 	/** Public HTTPS URL: Google downloads the logo itself. */
 	logoUrl: z.url({ protocol: /^https$/ }),
+	/** The program's current message, shown on every pass of the class. */
+	message: z.string().trim().min(1).max(100).nullish(),
 });
 
 export type LoyaltyClassInput = z.input<typeof loyaltyClassInputSchema>;
@@ -43,6 +45,20 @@ interface LocalizedString {
 	defaultValue: { language: string; value: string };
 }
 
+/**
+ * A class shows at most one message, the program's current one, under a
+ * fixed ID: Google keeps at most 10 messages per class.
+ */
+export const PROGRAM_MESSAGE_ID = "program-message";
+
+export interface GoogleMessage {
+	id: string;
+	header: string;
+	body: string;
+	/** `TEXT_AND_NOTIFY` also notifies the holders (Android), with `addMessage`. */
+	messageType: "TEXT" | "TEXT_AND_NOTIFY";
+}
+
 export interface GoogleLoyaltyClass {
 	id: string;
 	issuerName: string;
@@ -55,6 +71,7 @@ export interface GoogleLoyaltyClass {
 	reviewStatus: "UNDER_REVIEW";
 	multipleDevicesAndHoldersAllowedStatus: "ONE_USER_ALL_DEVICES";
 	callbackOptions: { url: string };
+	messages?: GoogleMessage[];
 }
 
 export interface GoogleLoyaltyPoints {
@@ -78,11 +95,24 @@ export function buildLoyaltyPoints(points: number): GoogleLoyaltyPoints {
 	};
 }
 
+export function buildProgramMessage(
+	programName: string,
+	message: string,
+	messageType: GoogleMessage["messageType"],
+): GoogleMessage {
+	return {
+		id: PROGRAM_MESSAGE_ID,
+		header: programName,
+		body: message,
+		messageType,
+	};
+}
+
 export function buildLoyaltyClass(
 	input: LoyaltyClassInput,
 	options: { issuerId: string; callbackUrl: string },
 ): GoogleLoyaltyClass {
-	const { classSuffix, programName, backgroundColor, logoUrl } =
+	const { classSuffix, programName, backgroundColor, logoUrl, message } =
 		loyaltyClassInputSchema.parse(input);
 
 	return {
@@ -102,6 +132,10 @@ export function buildLoyaltyClass(
 		multipleDevicesAndHoldersAllowedStatus: "ONE_USER_ALL_DEVICES",
 		// Google calls it when a pass is saved or deleted.
 		callbackOptions: { url: options.callbackUrl },
+		// Classes are replaced on update: this also drops older messages.
+		...(message
+			? { messages: [buildProgramMessage(programName, message, "TEXT")] }
+			: {}),
 	};
 }
 

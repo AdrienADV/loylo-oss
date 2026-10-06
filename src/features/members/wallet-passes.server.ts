@@ -76,7 +76,7 @@ function secretsMatch(actual: string, expected: string): boolean {
 }
 
 const PASS_COLUMNS =
-	"id, serial_number, authentication_token, created_at, member:members!inner(first_name, last_name, points, updated_at, program:programs!inner(id, name, background_color, logo_path, updated_at))" as const;
+	"id, serial_number, authentication_token, created_at, member:members!inner(first_name, last_name, points, updated_at, program:programs!inner(id, name, background_color, logo_path, wallet_message, updated_at))" as const;
 
 /**
  * The pass with this serial number, or `null` when it does not exist or the
@@ -160,7 +160,7 @@ export async function createApplePassFile(
 			program: {
 				name: program.name,
 				backgroundColor: program.background_color,
-				message: null,
+				message: program.wallet_message,
 			},
 			member: { name: memberName(pass), points: pass.member.points },
 			pass: {
