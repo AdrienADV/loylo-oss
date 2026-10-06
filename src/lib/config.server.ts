@@ -28,12 +28,15 @@ const optionalString = z
 	.optional()
 	.transform((value) => value || undefined);
 
-const appleWalletEnvSchema = z.object({
-	APP_URL: urlWithoutTrailingSlash,
+const appleIdentifiersEnvSchema = z.object({
 	APPLE_TEAM_ID: z
 		.string()
 		.regex(/^[A-Z0-9]{10}$/, "Expected a 10-character Team ID"),
 	APPLE_PASS_TYPE_ID: z.string().startsWith("pass."),
+});
+
+const appleWalletEnvSchema = appleIdentifiersEnvSchema.extend({
+	APP_URL: urlWithoutTrailingSlash,
 	APPLE_WWDR_CERT: pemSchema,
 	APPLE_SIGNER_CERT: pemSchema,
 	APPLE_SIGNER_KEY: pemSchema,
@@ -66,6 +69,26 @@ export function getAppleWalletConfig() {
 			signerCert: env.APPLE_SIGNER_CERT,
 			signerKey: env.APPLE_SIGNER_KEY,
 			signerKeyPassphrase: env.APPLE_SIGNER_KEY_PASSPHRASE,
+		},
+	};
+}
+
+const applePushEnvSchema = appleIdentifiersEnvSchema.extend({
+	APNS_KEY_ID: z
+		.string()
+		.regex(/^[A-Z0-9]{10}$/, "Expected a 10-character Key ID"),
+	APNS_KEY: pemSchema,
+});
+
+export function getApplePushConfig() {
+	const env = parseEnv(applePushEnvSchema, "Apple push");
+
+	return {
+		passTypeId: env.APPLE_PASS_TYPE_ID,
+		credentials: {
+			teamId: env.APPLE_TEAM_ID,
+			keyId: env.APNS_KEY_ID,
+			privateKey: env.APNS_KEY,
 		},
 	};
 }
