@@ -1,0 +1,4 @@
+<h2>Confirm your new email</h2>
+<p>You asked to change the email of your Loylo account from {{ .Email }} to {{ .NewEmail }}. Confirm the change:</p>
+<p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change&next=%2Faccount%3FemailChange%3Dconfirmed">Confirm the change</a></p>
+<p>Both addresses get this email: the change happens once both links are opened. If you did not ask for it, ignore this email and change your password.</p>
