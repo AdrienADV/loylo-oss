@@ -1,207 +1,84 @@
-Welcome to your new TanStack Start app!
+# Loylo OSS
 
-# Getting Started
+Open-source digital loyalty cards for Apple Wallet and Google Wallet. Merchants design a card,
+customers add it to their phone's wallet, and the card shows their points.
 
-To run this application:
+Built with [TanStack Start](https://tanstack.com/start) on Cloudflare Workers and
+[Supabase](https://supabase.com) (Postgres, Auth, Storage), with the shadcn design system.
+
+> **Status: work in progress.** The MVP is built in 11 pull requests; PRs 1–8 are merged.
+> [`docs/PLAN.md`](docs/PLAN.md) has the full plan, the decisions taken so far and what comes
+> next. A self-hosting guide comes with PR 11.
+
+## What works today
+
+- **Merchant accounts**: sign up with email confirmation, sign in, password reset.
+- **Loyalty programs**: create, edit and delete a program (name, card color, welcome points,
+  logo) with a live preview of the card. Logo images are resized in the browser.
+- **Enrollment**: a public page per program (`/join/{programId}`) and its QR code, where customers
+  enter their name and email and add the card to Apple Wallet or Google Wallet. Merchants can also
+  issue a card at the counter: the customer scans a QR code to add it.
+- **Wallet integration**:
+  - Apple passes are signed on the fly from the database.
+  - Google passes are created through the Google Wallet API.
+  - Apple's PassKit Web Service and Google's callbacks track whether each pass is installed.
+
+Coming next: points (scan, add / redeem, history) and pass updates on the devices (PR 9),
+marketing notifications (PR 10), account management and the landing page (PR 11).
+
+Each wallet is optional: without its configuration, its button does not show.
+
+## Local development
+
+Requirements: [Bun](https://bun.sh), Docker, and the Supabase CLI (installed as a dev dependency).
 
 ```bash
 bun install
-bun --bun run dev
+bunx supabase start      # local Postgres, Auth, Storage, Mailpit
+bunx supabase db reset   # applies supabase/migrations
 ```
 
-# Building For Production
-
-To build this application for production:
+Copy `.env.example` to `.env.local` and fill in the Supabase values printed by
+`bunx supabase status` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`,
+`SUPABASE_SECRET_KEY`). Apple and Google Wallet variables are only needed to issue passes for that
+wallet; the comments in `.env.example` explain each one.
 
 ```bash
-bun --bun run build
+bun run dev              # http://localhost:3000
 ```
 
-## Styling
+Confirmation and password reset emails land in Mailpit: http://127.0.0.1:54324.
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+Wallet limitations in development:
+- Wallet apps require HTTPS to reach the app. For Apple, a tunnel works, or "Allow HTTP Services"
+  in the iPhone's developer settings.
+- Google needs an HTTPS logo URL, so Google passes fail with the local Supabase URL.
+- Apple push notifications only work from a deployed Worker.
 
-### Removing Tailwind CSS
+## Scripts
 
-If you prefer not to use Tailwind CSS:
+| Command | What it does |
+| --- | --- |
+| `bun run dev` | Development server (Vite + the Workers runtime) |
+| `bun run build` | Production build |
+| `bun run test` | The `.pkpass` validation test, run in the Workers runtime |
+| `bun run check` | Biome lint and format check |
+| `bun run gen:types` | Regenerates `src/lib/supabase/database.types.ts` from the local database |
+| `bun run deploy` | Builds and deploys with Wrangler |
 
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Remove `@tailwindcss/vite` and `tailwindcss` from `package.json`
+## Project layout
 
-## Linting & Formatting
+- `src/features/` — one folder per feature (`auth`, `programs`, `members`, `enrollment`,
+  `wallet-services`): Zod schemas, server functions, server-only use cases, components.
+- `src/lib/wallet/` — Apple (pass builder, signing, APNs) and Google (API client, objects,
+  callback verification) adapters.
+- `src/routes/` — pages and server routes (file-based routing).
+- `supabase/migrations/` — the database schema, with Row Level Security on every table.
 
-This project uses [Biome](https://biomejs.dev/) for linting and formatting. The following scripts are available:
+The [code map in the plan](docs/PLAN.md#code-map) has more detail.
 
+## Contributing
 
-```bash
-bun --bun run lint
-bun --bun run format
-bun --bun run check
-```
-
-
-## Deploy to Cloudflare Workers
-
-This project uses the Cloudflare Vite plugin (configured in `vite.config.ts`) and `wrangler.jsonc`:
-
-1. Install Wrangler: `npm install -g wrangler`
-2. Authenticate: `wrangler login`
-3. Deploy: `npx wrangler deploy`
-
-For production env vars, run `wrangler secret put MY_VAR` for each secret listed in `.env.example`. Public (non-secret) vars go in `wrangler.jsonc` under `vars`.
-
-KV, D1, R2, and Durable Object bindings are configured in `wrangler.jsonc` — see https://developers.cloudflare.com/workers/wrangler/configuration/.
-
-
-
-## Routing
-
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-  
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-  
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+Code, comments, commits and pull requests are in English; commits follow
+[Conventional Commits](https://www.conventionalcommits.org). See [`AGENTS.md`](AGENTS.md) for the
+conventions and [`docs/PLAN.md`](docs/PLAN.md) for how each change is verified.
