@@ -1,9 +1,128 @@
 # Loylo OSS — MVP plan
 
-Status: **validated plan**, in progress (PRs 1–3 merged, PR 4 open).
+Status: **in progress**: PRs 1–6 merged, next is PR 7 (`feat/enrollment`). See [Status and handoff](#status-and-handoff).
 
 This document is the shared context for building Loylo OSS: what we build, what we decided,
 why, and in which order. Read it before starting any PR.
+
+## Status and handoff
+
+Read this section first when picking up the work in a new session.
+
+| # | Branch | GitHub PR | State |
+| --- | --- | --- | --- |
+| 1 | `feat/apple-pass-signing` | #2 | merged |
+| 2 | `feat/apple-push` | #3 | merged |
+| 3 | `feat/google-wallet` | #4 | merged |
+| 4 | `feat/database-foundations` | #5 | merged |
+| 5 | `feat/auth` | #6 | merged |
+| 6 | `feat/programs` | #7 | merged |
+| 7 | `feat/enrollment` | — | **next** |
+| 8–11 | see [Pull requests](#pull-requests) | — | to do |
+
+How the owner works: one PR at a time; the owner merges it (even while the Cloudflare build
+is red, see below) and says when to start the next one. Do not start the next PR without the go.
+
+### Decisions taken during implementation
+
+These refine or override the sections below.
+
+- **APNs runs in the Worker** (no Edge Function): deployed Workers reach APNs over HTTP/2
+  through `fetch`; local workerd cannot, so pushes only work once deployed.
+- **`WalletProvider` interface** is defined in PR 9, where both wallets are first used together.
+- **Only what is used**: `citext` and the `wallet_provider` enum arrive with PR 7, `programs.wallet_message`
+  with PR 10. No `google_class_id` column: the class ID is `{GOOGLE_ISSUER_ID}.{program id}`.
+- **Explicit grants**: Supabase is moving the Data API to opt-in grants, so every migration
+  grants table and column privileges itself (nothing for `anon`), next to RLS.
+- **Internal SQL helpers** live in the unexposed `private` schema (`private.set_updated_at()`).
+- **Session cookies are `HttpOnly`** (`src/lib/supabase/cookies.server.ts`): only the server
+  handles the session, so the browser Supabase client is always anonymous.
+- **Three Supabase clients**: `createUserClient()` (session, RLS, the default),
+  `createAdminClient()` (secret key, public flows only), `createAuthClient()` (secret key +
+  `Sb-Forwarded-For`, Auth endpoints only, so Supabase rate-limits per visitor IP instead of
+  per Worker IP).
+- **Auth hardening**: `authMiddleware` (`getClaims()`) on every private server function,
+  TanStack Start's built-in `createCsrfMiddleware` for server functions (`src/start.ts`), a Workers
+  rate limiter `AUTH_RATE_LIMITER` (10/min per IP and action), no account enumeration, in-app
+  redirects only.
+- **Auth emails** use `token_hash` links to `/auth/confirm` (templates in `supabase/templates`).
+- **Program images** are generated in the browser (`program-images.ts`) and checked on the server
+  (PNG signature, exact dimensions, ≤ 1 MB). Each logo version has its own folder
+  `{owner}/{program}/{version}` in `program-assets`: `apple-icon.png`, `apple-icon@2x.png`,
+  `apple-logo.png`, `apple-logo@2x.png`, `google-logo.png`.
+- **Wallets are optional**: `getOptionalGoogleWalletConfig()` returns `null` when Google is not
+  configured (sync skipped). Add the same for Apple when PR 7 needs it.
+- **Google class sync never fails a request**: it is logged and reported in the UI; saving again
+  retries. Google classes cannot be deleted through the API.
+
+### Code map
+
+| Path | Content |
+| --- | --- |
+| `src/lib/config.server.ts` | Env validation with Zod, read per request (`getSupabaseConfig`, `getAppleWalletConfig`, `getApplePushConfig`, `getGoogleWalletConfig`, `getOptionalGoogleWalletConfig`, …) |
+| `src/lib/wallet/apple/` | `pass-json.ts` (pure builder), `pkpass.server.ts` (signing), `apns.server.ts` (pushes), `pkpass.server.test.ts` (the only test) |
+| `src/lib/wallet/google/` | `objects.ts` (class / object builders), `client.server.ts` (API client, save URL), `callback.server.ts` (callback verification) |
+| `src/lib/supabase/` | clients, `cookies.server.ts`, generated `database.types.ts` |
+| `src/lib/forms.ts`, `src/components/form-*.tsx` | `useSchemaForm` (Zod → field errors), `FormField`, `FormAlert` |
+| `src/features/auth/` | schemas, server helpers, `authMiddleware`, server functions, `AuthCard` |
+| `src/features/programs/` | schemas (`PROGRAM_IMAGES`), server helpers, server functions, `ProgramForm`, `PassPreview`, `ProgramCard` |
+| `src/routes/_guest*`, `src/routes/_authed*` | signed-out and signed-in layouts and pages; `src/routes/auth/confirm.ts` |
+| `src/routes/api/demo/` | development-only demo routes (Apple pass, Google pass), to replace in PR 7 |
+
+Code conventions: server functions use `.validator()` (`inputValidator()` is deprecated in this
+TanStack Start version); a foreign or unknown ID throws `notFound()`; errors shown to users are
+thrown as `Error` with a safe message and details are logged.
+
+### Local development and verification
+
+Each PR so far was verified end to end before opening it. The environment used:
+
+1. Docker: start the daemon if needed (`dockerd &`).
+2. Supabase: `bunx supabase start -x realtime,imgproxy,studio,edge-runtime,logflare,vector,supavisor`
+   (keeps db, auth, storage, REST, Mailpit). If the `realtime` image cannot be pulled from ECR or
+   GHCR, pull `supabase/realtime:<tag>` from Docker Hub and tag it as
+   `public.ecr.aws/supabase/realtime:<tag>`.
+3. `bunx supabase db reset` applies the migrations, `bun run gen:types` regenerates the types,
+   `bunx supabase db advisors --local` checks security.
+4. `.env.local` (git-ignored) from `bunx supabase status -o json`: `VITE_SUPABASE_URL`,
+   `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, plus wallet variables when needed.
+5. `bun run dev`, then drive the app with Playwright and Chromium (`/opt/pw-browsers`), with
+   scripts kept outside the repo. Mailpit (`http://127.0.0.1:54324`) receives auth emails; check
+   rows and RLS with `psql postgresql://postgres:postgres@127.0.0.1:54322/postgres`.
+6. Before pushing: `bunx tsc --noEmit`, Biome on the changed files, `bun run build` (and check that
+   no server code ends up in `dist/client`), `bun run test`.
+
+Gotchas: the auth rate limiter blocks sign-in after 10 attempts per minute (space out scripted
+sign-ins); TanStack Router updates the URL before the next page renders (wait for content, not
+the URL); `supabase.com`, `developers.google.com` and the shadcn registry may be unreachable from
+the agent environment: read Supabase docs from `raw.githubusercontent.com/supabase/supabase`,
+and generate shadcn components from the shadcn GitHub sources with the `base-luma` style
+(`apps/v4/registry/styles/style-luma.css`).
+
+### Known issues and open items
+
+- **Cloudflare Workers Builds fails on every PR and on `main`**. The cause is only visible in
+  the Cloudflare dashboard build logs; share a log to fix it. The Worker was renamed to
+  `loylo-oss` to match the Cloudflare project; `wrangler.jsonc` also has the `AUTH_RATE_LIMITER`
+  binding.
+- **Hosted Supabase setup** (owner): copy `supabase/templates/*.html` into Authentication >
+  Email Templates, set the Site URL, enable IP address forwarding (Authentication > Rate Limits).
+- **Google class sync** needs an HTTPS logo URL (it fails with the local `http` Supabase URL).
+- Biome reports formatting issues in starter files (`biome.json` schema version, `button.tsx`,
+  `router.tsx`, `__root.tsx`); they predate the project work and were left untouched.
+- Program changes (name, color, logo) are not pushed to installed passes yet (needs PR 8).
+
+### Notes for PR 7 (`feat/enrollment`)
+
+- Migration `create_members_and_wallet_passes`: `citext`, `wallet_provider` enum, `members` and
+  `wallet_passes` as described in [Database](#database-supabase-public-schema-rls-on-every-table),
+  with explicit grants, RLS through the program's `owner_id`, and FK indexes.
+- Public pages (`/join/$programId`, pass download, Google save link) have no user: use
+  `createAdminClient()` with strict validation, and rate-limit enrollment.
+- Generate serial numbers and Apple authentication tokens with cryptographic randomness.
+- Build Apple passes from the program images: `apple-icon*.png` → `icon*.png`,
+  `apple-logo*.png` → `logo*.png`. Before creating a Google object, sync the class (it may be missing).
+- Replace the demo routes in `src/routes/api/demo/`.
 
 ## Context
 
@@ -250,6 +369,7 @@ The automated `.pkpass` test does not need real certificates (it generates test 
   Apply locally with `supabase db reset`, then `bun run gen:types` to regenerate
   `src/lib/supabase/database.types.ts`.
 - No CI. The only automated test is the `.pkpass` validation test.
+- Verify each PR end to end on a local Supabase before opening it (see [Local development and verification](#local-development-and-verification)).
 
 ## Pull requests
 
