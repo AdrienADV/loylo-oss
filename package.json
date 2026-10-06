@@ -17,6 +17,8 @@
     "intent": "node node_modules/@tanstack/intent/dist/cli.mjs"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.117.2",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-devtools": "0.10.13",
     "@tanstack/react-router": "1.170.41",
