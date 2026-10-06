@@ -15,7 +15,8 @@ function firstErrorPerField(error: z.ZodError): FieldErrors {
 /**
  * Validates a form with the same Zod schema as its server function, then runs
  * `onValid`. Errors thrown by `onValid` (server function messages) are shown
- * as a form-level error.
+ * as a form-level error. The clicked submit button's `name` and `value` are
+ * part of the data, as in a native form submission.
  */
 export function useSchemaForm<TSchema extends z.ZodType>(
 	schema: TSchema,
@@ -29,8 +30,9 @@ export function useSchemaForm<TSchema extends z.ZodType>(
 		event.preventDefault();
 		setFormError(null);
 
+		const submitter = (event.nativeEvent as SubmitEvent).submitter;
 		const result = schema.safeParse(
-			Object.fromEntries(new FormData(event.currentTarget)),
+			Object.fromEntries(new FormData(event.currentTarget, submitter)),
 		);
 		if (!result.success) {
 			setFieldErrors(firstErrorPerField(result.error));
