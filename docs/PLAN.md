@@ -1,6 +1,6 @@
 # Loylo OSS — MVP plan
 
-Status: **validated plan**, in progress (PRs 1–2 merged, PR 3 open).
+Status: **validated plan**, in progress (PRs 1–3 merged, PR 4 open).
 
 This document is the shared context for building Loylo OSS: what we build, what we decided,
 why, and in which order. Read it before starting any PR.
@@ -148,8 +148,9 @@ auth.users ─1..n─ programs ─1..n─ members ─1..n─ wallet_passes ─n.
 
 - **`programs`**: `id uuid pk default gen_random_uuid()`, `owner_id uuid not null → auth.users on delete cascade`,
   `name text check (char_length between 1 and 64)`, `background_color text check (~ '^#[0-9a-f]{6}$')`,
-  `logo_path text`, `initial_points int check (>= 0)`, `google_class_id text unique`,
-  `wallet_message text check (char_length <= 100)`, `created_at`, `updated_at`.
+  `logo_path text`, `initial_points int check (>= 0)`, `created_at`, `updated_at`; `wallet_message
+  text check (char_length <= 100)` is added by PR 10. The Google class ID is deterministic
+  (`{GOOGLE_ISSUER_ID}.{program id}`), so it is not stored.
 - **`members`**: `id uuid`, `program_id → programs on delete cascade`, `email citext`,
   `first_name text`, `last_name text`, `points int not null check (points >= 0)`,
   `created_at`, `updated_at`; `unique (program_id, email)`.
@@ -259,13 +260,13 @@ PRs 1–3 have no database dependency and prove the risky parts on Workers first
 | 1 | `feat/apple-pass-signing` | Typed config (Zod, per request), Apple `pass.json` builder (Zod), signing with `passkit-generator`, the `.pkpass` validation test, demo route returning a `.pkpass`. | — |
 | 2 | `feat/apple-push` | APNs adapter in the Worker (`.p8` token auth with `jose`), per-device results (sent / unregistered / failed). | — |
 | 3 | `feat/google-wallet` | Google adapter with `jose`: service-account token, class / object builders (Zod), save JWT, object patch, `addMessage`, callback signature verification (WebCrypto). Demo route. | — |
-| 4 | `feat/database-foundations` | `citext`, `wallet_provider` enum, `set_updated_at()`, `programs` + RLS, `program-assets` bucket + policies, `gen:types` script, typed server / browser / admin clients, removal of the starter demo. | `create_programs` |
+| 4 | `feat/database-foundations` | `private.set_updated_at()`, `programs` + explicit grants + RLS, `program-assets` bucket + policies, Supabase CLI + `gen:types` script, typed user / admin / browser clients, removal of the starter demo. | `create_programs` |
 | 5 | `feat/auth` | Sign up, sign in, sign out, forgot / reset password, `/auth/confirm`, `authMiddleware`, `_authed` layout, auth settings in `config.toml`. | — |
 | 6 | `feat/programs` | Dashboard, create program with live pass preview and browser image resize, Google class creation, settings (edit / delete). | — |
-| 7 | `feat/enrollment` | `members` + `wallet_passes`, `/join/$programId`, manual issue, `.pkpass` download route, Google save link, share page (link + QR). | `create_members_and_wallet_passes` |
+| 7 | `feat/enrollment` | `citext`, `wallet_provider` enum, `members` + `wallet_passes`, `/join/$programId`, manual issue, `.pkpass` download route, Google save link, share page (link + QR). | `create_members_and_wallet_passes` |
 | 8 | `feat/wallet-web-services` | `apple_devices` + `apple_registrations`, Apple PassKit Web Service routes, Google callback route, install state. | `create_apple_registrations` |
 | 9 | `feat/points` | `point_transactions` + `adjust_points()`, members list, member page (balance, add / redeem, history), scan page, `WalletProvider` interface and wallet sync after each change. | `create_point_transactions` |
-| 10 | `feat/marketing-notifications` | `notifications` + `create_notification()`, compose page with preview and history, Apple `changeMessage` + push, Google `addMessage`. | `create_notifications` |
+| 10 | `feat/marketing-notifications` | `programs.wallet_message`, `notifications` + `create_notification()`, compose page with preview and history, Apple `changeMessage` + push, Google `addMessage`. | `create_notifications` |
 | 11 | `feat/account` | Account page (email, password, delete account), landing page, README for self-hosting. | — |
 
 ### Details and done criteria
@@ -305,5 +306,7 @@ PRs 1–3 have no database dependency and prove the risky parts on Workers first
     - Done when a message reaches Apple and Google passes, and the 24 h rule and monthly cap are
       enforced by the database.
 11. **`feat/account`**
+    - Supabase forbids deleting storage objects in SQL: remove the user's files through the
+      Storage API before deleting the user.
     - Done when a merchant can delete the account (sessions revoked, data cascaded) and the
       README explains how to self-host.
