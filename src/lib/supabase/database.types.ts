@@ -62,6 +62,25 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"notifications": {
+                  Row: {
+                    "created_at": string,"id": number,"message": string,"program_id": string,"sent_by": string | null
+                  }
+                  Insert: {
+                    "created_at"?: string,"id"?: never,"message": string,"program_id": string,"sent_by"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: never,"message"?: string,"program_id"?: string,"sent_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "notifications_program_id_fkey"
+      columns: ["program_id"]
+isOneToOne: false
+      referencedRelation: "programs"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"point_transactions": {
                   Row: {
                     "balance_after": number,"created_at": string,"created_by": string | null,"delta": number,"id": number,"kind": Database["public"]['Enums']["point_transaction_kind"],"member_id": string
@@ -83,13 +102,13 @@ isOneToOne: false
                   ]
                 },"programs": {
                   Row: {
-                    "background_color": string,"created_at": string,"id": string,"initial_points": number,"logo_path": string | null,"name": string,"owner_id": string,"updated_at": string
+                    "background_color": string,"created_at": string,"id": string,"initial_points": number,"logo_path": string | null,"name": string,"owner_id": string,"updated_at": string,"wallet_message": string | null
                   }
                   Insert: {
-                    "background_color": string,"created_at"?: string,"id"?: string,"initial_points"?: number,"logo_path"?: string | null,"name": string,"owner_id"?: string,"updated_at"?: string
+                    "background_color": string,"created_at"?: string,"id"?: string,"initial_points"?: number,"logo_path"?: string | null,"name": string,"owner_id"?: string,"updated_at"?: string,"wallet_message"?: string | null
                   }
                   Update: {
-                    "background_color"?: string,"created_at"?: string,"id"?: string,"initial_points"?: number,"logo_path"?: string | null,"name"?: string,"owner_id"?: string,"updated_at"?: string
+                    "background_color"?: string,"created_at"?: string,"id"?: string,"initial_points"?: number,"logo_path"?: string | null,"name"?: string,"owner_id"?: string,"updated_at"?: string,"wallet_message"?: string | null
                   }
                   Relationships: [
                     
@@ -122,6 +141,20 @@ isOneToOne: false
             "adjust_points":
 { Args: { "delta": number,"member_id": string }; Returns: number
                            },
+"create_notification":
+{ Args: { "message": string,"monthly_cap": number,"program_id": string,"sent_by": string }; Returns: {
+              "created_at": string,
+"id": number,
+"message": string,
+"program_id": string,
+"sent_by": string | null
+            }[]
+                          SetofOptions: {
+        from: "*"
+        to: "notifications"
+        isOneToOne: false
+        isSetofReturn: true
+      } },
 "enroll_member":
 { Args: { "email": string,"first_name": string,"last_name": string,"program_id": string,"provider": Database["public"]['Enums']["wallet_provider"] }; Returns: {
               "authentication_token": string,"serial_number": string
@@ -154,6 +187,16 @@ isOneToOne: false
         isOneToOne: false
         isSetofReturn: true
       } },
+"list_program_apple_devices":
+{ Args: { "program_id": string }; Returns: {
+              "device_library_identifier": string,"pass_ids": (string)[],"push_token": string
+            }[]
+                           },
+"notification_usage":
+{ Args: { "program_id": string }; Returns: {
+              "last_sent_at": string,"sent_this_month": number
+            }[]
+                           },
 "record_wallet_pass_install":
 { Args: { "installed": boolean,"pass_id": string }; Returns: undefined
                            },
