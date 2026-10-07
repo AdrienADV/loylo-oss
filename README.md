@@ -190,3 +190,7 @@ The [code map in the plan](docs/PLAN.md#code-map) has more detail.
 Code, comments, commits and pull requests are in English; commits follow
 [Conventional Commits](https://www.conventionalcommits.org). See [`AGENTS.md`](AGENTS.md) for the
 conventions and [`docs/PLAN.md`](docs/PLAN.md) for how each change is verified.
+
+## License
+
+[MIT](LICENSE)

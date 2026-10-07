@@ -1,6 +1,7 @@
 {
   "name": "loylo-oss",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "imports": {
     "#/*": "./src/*"
