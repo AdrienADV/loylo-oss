@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
 import { requestPasswordReset } from "#/features/auth/auth.functions";
 import { forgotPasswordSchema } from "#/features/auth/auth.schemas";
 import { AuthCard } from "#/features/auth/components/auth-card";
@@ -9,6 +8,7 @@ import { FormAlert } from "@/components/form-alert";
 import { FormField } from "@/components/form-field";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
+import { toast } from "@/components/ui/toast";
 
 export const Route = createFileRoute("/_guest/forgot-password")({
 	component: ForgotPasswordPage,
@@ -16,10 +16,13 @@ export const Route = createFileRoute("/_guest/forgot-password")({
 
 function ForgotPasswordPage() {
 	const requestPasswordResetFn = useServerFn(requestPasswordReset);
-	const [sentTo, setSentTo] = useState<string | null>(null);
 	const form = useSchemaForm(forgotPasswordSchema, async (data) => {
 		await requestPasswordResetFn({ data });
-		setSentTo(data.email);
+		toast.add({
+			type: "success",
+			title: "Check your inbox.",
+			description: `If an account exists for ${data.email}, a reset link is on its way.`,
+		});
 	});
 
 	return (
@@ -31,11 +34,6 @@ function ForgotPasswordPage() {
 			<form onSubmit={form.onSubmit} noValidate>
 				<FieldGroup>
 					<FormAlert>{form.formError}</FormAlert>
-					<FormAlert tone="success">
-						{sentTo
-							? `If an account exists for ${sentTo}, a reset link is on its way.`
-							: null}
-					</FormAlert>
 					<FormField
 						name="email"
 						label="Email"

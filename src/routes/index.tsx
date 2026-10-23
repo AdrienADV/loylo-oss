@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useCallback } from "react";
 import { z } from "zod";
 
 import { PassPreview } from "#/features/programs/components/pass-preview";
-import { FormAlert } from "@/components/form-alert";
 import { buttonVariants } from "@/components/ui/button";
+import { useToastOnce } from "@/hooks/use-toast-once";
 
 const SOURCE_URL = "https://github.com/AdrienADV/loylo-oss";
 
@@ -36,6 +37,15 @@ const FEATURES = [
 
 function Home() {
 	const { account } = Route.useSearch();
+	const navigate = Route.useNavigate();
+	const clearAccount = useCallback(() => {
+		void navigate({ search: {}, replace: true });
+	}, [navigate]);
+	useToastOnce(
+		account === "deleted",
+		{ title: "Your account and its data were deleted." },
+		clearAccount,
+	);
 
 	return (
 		<div className="min-h-svh">
@@ -51,11 +61,6 @@ function Home() {
 				</nav>
 			</header>
 			<main className="mx-auto flex max-w-5xl flex-col gap-16 px-6 pt-8 pb-16">
-				{account === "deleted" ? (
-					<FormAlert tone="success">
-						Your account and its data were deleted.
-					</FormAlert>
-				) : null}
 				<section className="grid items-center gap-10 md:grid-cols-[1fr_auto]">
 					<div className="flex flex-col gap-5">
 						<h1 className="font-semibold text-4xl tracking-tight md:text-5xl">

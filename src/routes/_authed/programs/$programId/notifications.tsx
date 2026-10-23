@@ -22,6 +22,7 @@ import type { WalletSyncResult } from "#/features/wallet-sync/wallet-sync";
 import { FormAlert } from "@/components/form-alert";
 import { FormattedDate } from "@/components/formatted-date";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 
 const programRoute = getRouteApi("/_authed/programs/$programId");
 
@@ -66,10 +67,9 @@ function NotificationsPage() {
 				) : (
 					<>
 						<QuotaSummary quota={quota} />
-						{walletSync ? (
-							<SentNotice
+						{walletSync === "failed" ? (
+							<SyncFailedNotice
 								programId={program.id}
-								walletSync={walletSync}
 								onRetried={setWalletSync}
 							/>
 						) : null}
@@ -83,6 +83,11 @@ function NotificationsPage() {
 								});
 								await router.invalidate({ sync: true });
 								setWalletSync(result.walletSync);
+								toast.add({
+									type: "success",
+									title: "Message sent.",
+									description: "Customers with the card will see it shortly.",
+								});
 							}}
 						/>
 					</>
@@ -115,14 +120,12 @@ function QuotaSummary({ quota }: { quota: NotificationQuota }) {
 	);
 }
 
-/** The message is saved; says whether every wallet could be reached. */
-function SentNotice({
+/** The message is sent, but some wallets could not be reached. */
+function SyncFailedNotice({
 	programId,
-	walletSync,
 	onRetried,
 }: {
 	programId: string;
-	walletSync: WalletSyncResult;
 	onRetried: (walletSync: WalletSyncResult) => void;
 }) {
 	const retryFn = useServerFn(retryProgramWalletSync);
@@ -131,7 +134,11 @@ function SentNotice({
 	async function retry() {
 		setPending(true);
 		try {
-			onRetried((await retryFn({ data: { programId } })).walletSync);
+			const { walletSync } = await retryFn({ data: { programId } });
+			if (walletSync !== "failed") {
+				toast.add({ type: "success", title: "Cards updated." });
+			}
+			onRetried(walletSync);
 		} catch {
 			onRetried("failed");
 		} finally {
@@ -140,26 +147,14 @@ function SentNotice({
 	}
 
 	return (
-		<div className="flex flex-col gap-2">
-			<FormAlert tone="success">
-				Message sent. Customers with the card will see it shortly.
+		<div className="flex flex-col items-start gap-2">
+			<FormAlert>
+				The message is sent, but some wallet cards could not be updated: they
+				may not show it yet.
 			</FormAlert>
-			{walletSync === "failed" ? (
-				<div className="flex flex-col items-start gap-2">
-					<FormAlert>
-						Some wallet cards could not be updated: they may not show the
-						message yet.
-					</FormAlert>
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={pending}
-						onClick={retry}
-					>
-						{pending ? "Updating…" : "Update the cards again"}
-					</Button>
-				</div>
-			) : null}
+			<Button variant="outline" size="sm" disabled={pending} onClick={retry}>
+				{pending ? "Updating…" : "Update the cards again"}
+			</Button>
 		</div>
 	);
 }

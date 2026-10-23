@@ -17,6 +17,7 @@ import {
 	removeTeamMember,
 } from "#/features/team/team.functions";
 import { FormAlert } from "@/components/form-alert";
+import { toast } from "@/components/ui/toast";
 
 export const Route = createFileRoute("/_authed/programs/$programId/team")({
 	loader: ({ params }) => {
@@ -28,11 +29,6 @@ export const Route = createFileRoute("/_authed/programs/$programId/team")({
 	component: TeamPage,
 });
 
-interface InviteResult {
-	email: string;
-	sent: boolean;
-}
-
 function TeamPage() {
 	const { programId } = Route.useParams();
 	const team = Route.useLoaderData();
@@ -41,14 +37,23 @@ function TeamPage() {
 	const inviteFn = useServerFn(inviteTeamMember);
 	const cancelFn = useServerFn(cancelInvitation);
 	const removeFn = useServerFn(removeTeamMember);
-	const [inviteResult, setInviteResult] = useState<InviteResult | null>(null);
+	/** Email of an invitation whose email could not be sent. */
+	const [unsentTo, setUnsentTo] = useState<string | null>(null);
 	const isAdmin = team.role === "admin";
 
 	async function invite(email: string) {
-		setInviteResult(null);
-		const result = await inviteFn({ data: { programId, email } });
+		setUnsentTo(null);
+		const { sent } = await inviteFn({ data: { programId, email } });
 		await router.invalidate({ sync: true });
-		setInviteResult({ email, sent: result.sent });
+		if (sent) {
+			toast.add({
+				type: "success",
+				title: `Invitation sent to ${email}.`,
+				description: "The link in the email expires in 7 days.",
+			});
+		} else {
+			setUnsentTo(email);
+		}
 	}
 
 	return (
@@ -66,7 +71,11 @@ function TeamPage() {
 					</div>
 					{team.emailsEnabled ? (
 						<>
-							{inviteResult ? <InviteNotice result={inviteResult} /> : null}
+							<FormAlert>
+								{unsentTo
+									? `The invitation for ${unsentTo} is saved, but the email could not be sent. Send it again in a moment.`
+									: null}
+							</FormAlert>
 							<InviteForm onInvite={invite} />
 						</>
 					) : (
@@ -108,27 +117,12 @@ function TeamPage() {
 							await cancelFn({
 								data: { programId, invitationId: invitation.id },
 							});
-							setInviteResult(null);
+							setUnsentTo(null);
 							await router.invalidate({ sync: true });
 						}}
 					/>
 				</section>
 			) : null}
 		</div>
-	);
-}
-
-/** The invitation is saved; says whether its email went out. */
-function InviteNotice({ result }: { result: InviteResult }) {
-	return result.sent ? (
-		<FormAlert tone="success">
-			Invitation sent to {result.email}. The link in the email expires in 7
-			days.
-		</FormAlert>
-	) : (
-		<FormAlert>
-			The invitation for {result.email} is saved, but the email could not be
-			sent. Send it again in a moment.
-		</FormAlert>
 	);
 }

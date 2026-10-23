@@ -26,6 +26,7 @@ import type { WalletSyncResult } from "#/features/wallet-sync/wallet-sync";
 import { FormAlert } from "@/components/form-alert";
 import { FormattedDate } from "@/components/formatted-date";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute(
@@ -57,18 +58,13 @@ export const Route = createFileRoute(
 	),
 });
 
-interface PointsNotice {
-	memberId: string;
-	message: string;
-	walletSync: WalletSyncResult;
-}
-
 function MemberPage() {
 	const { programId } = Route.useParams();
 	const { member, history } = Route.useLoaderData();
 	const router = useRouter();
 	const adjustPointsFn = useServerFn(adjustPoints);
-	const [notice, setNotice] = useState<PointsNotice | null>(null);
+	/** The member whose wallet cards missed the last points change. */
+	const [syncFailedFor, setSyncFailedFor] = useState<string | null>(null);
 
 	return (
 		<div className="flex flex-col gap-8">
@@ -106,25 +102,27 @@ function MemberPage() {
 						</span>
 					</div>
 				</div>
-				{notice?.memberId === member.id ? (
-					<PointsNoticeAlert
-						notice={notice}
+				{syncFailedFor === member.id ? (
+					<SyncFailedNotice
 						memberId={member.id}
-						onRetried={(walletSync) => setNotice({ ...notice, walletSync })}
+						onRetried={(walletSync) =>
+							setSyncFailedFor(walletSync === "failed" ? member.id : null)
+						}
 					/>
 				) : null}
 				<PointsForm
 					balance={member.points}
 					onSubmit={async ({ points, direction }) => {
-						setNotice(null);
+						setSyncFailedFor(null);
 						const result = await adjustPointsFn({
 							data: { memberId: member.id, points, direction },
 						});
 						await router.invalidate({ sync: true });
-						setNotice({
-							memberId: member.id,
-							message: `${direction === "add" ? "Added" : "Redeemed"} ${points} points. New balance: ${result.points}.`,
-							walletSync: result.walletSync,
+						setSyncFailedFor(result.walletSync === "failed" ? member.id : null);
+						toast.add({
+							type: "success",
+							title: `${direction === "add" ? "Added" : "Redeemed"} ${points} points.`,
+							description: `New balance: ${result.points}.`,
 						});
 					}}
 				/>
@@ -161,13 +159,11 @@ function MemberPage() {
 	);
 }
 
-/** Points saved, and whether the member's wallet cards show them. */
-function PointsNoticeAlert({
-	notice,
+/** Points saved, but the member's wallet cards could not be updated. */
+function SyncFailedNotice({
 	memberId,
 	onRetried,
 }: {
-	notice: PointsNotice;
 	memberId: string;
 	onRetried: (walletSync: WalletSyncResult) => void;
 }) {
@@ -178,6 +174,9 @@ function PointsNoticeAlert({
 		setPending(true);
 		try {
 			const { walletSync } = await retryFn({ data: { memberId } });
+			if (walletSync !== "failed") {
+				toast.add({ type: "success", title: "Cards updated." });
+			}
 			onRetried(walletSync);
 		} catch {
 			onRetried("failed");
@@ -187,24 +186,14 @@ function PointsNoticeAlert({
 	}
 
 	return (
-		<div className="flex flex-col gap-2">
-			<FormAlert tone="success">{notice.message}</FormAlert>
-			{notice.walletSync === "failed" ? (
-				<div className="flex flex-col items-start gap-2">
-					<FormAlert>
-						The member's wallet cards could not be updated: they may still show
-						the previous balance.
-					</FormAlert>
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={pending}
-						onClick={retry}
-					>
-						{pending ? "Updating…" : "Update the cards again"}
-					</Button>
-				</div>
-			) : null}
+		<div className="flex flex-col items-start gap-2">
+			<FormAlert>
+				Points saved, but the member's wallet cards could not be updated: they
+				may still show the previous balance.
+			</FormAlert>
+			<Button variant="outline" size="sm" disabled={pending} onClick={retry}>
+				{pending ? "Updating…" : "Update the cards again"}
+			</Button>
 		</div>
 	);
 }

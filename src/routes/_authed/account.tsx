@@ -4,7 +4,7 @@ import {
 	useRouter,
 } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { z } from "zod";
 import {
 	changePassword,
@@ -23,6 +23,8 @@ import { FormField } from "@/components/form-field";
 import { FormattedDate } from "@/components/formatted-date";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
+import { toast } from "@/components/ui/toast";
+import { useToastOnce } from "@/hooks/use-toast-once";
 
 export const Route = createFileRoute("/_authed/account")({
 	validateSearch: z.object({
@@ -69,16 +71,29 @@ function Section({
 
 function EmailSection({ email }: { email: string }) {
 	const { emailChange } = Route.useSearch();
+	const navigate = Route.useNavigate();
 	const requestEmailChangeFn = useServerFn(requestEmailChange);
 	const formRef = useRef<HTMLFormElement>(null);
-	const [notice, setNotice] = useState<string | null>(null);
+	const clearEmailChange = useCallback(() => {
+		void navigate({ search: {}, replace: true });
+	}, [navigate]);
+	useToastOnce(
+		emailChange === "confirmed",
+		{
+			title: "Link confirmed.",
+			description:
+				"If your email has not changed yet, also open the link sent to your other address.",
+		},
+		clearEmailChange,
+	);
 	const form = useSchemaForm(emailChangeSchema, async (data) => {
-		setNotice(null);
 		const { currentEmail, newEmail } = await requestEmailChangeFn({ data });
 		formRef.current?.reset();
-		setNotice(
-			`We sent a confirmation link to ${currentEmail} and to ${newEmail}. Your email changes once both links are opened.`,
-		);
+		toast.add({
+			type: "success",
+			title: "Check both inboxes.",
+			description: `We sent a confirmation link to ${currentEmail} and to ${newEmail}. Your email changes once both links are opened.`,
+		});
 	});
 
 	return (
@@ -86,13 +101,6 @@ function EmailSection({ email }: { email: string }) {
 			<p className="text-sm">
 				You sign in with <span className="font-medium">{email}</span>.
 			</p>
-			{emailChange === "confirmed" ? (
-				<FormAlert tone="success">
-					Link confirmed. If your email has not changed yet, also open the link
-					sent to your other address.
-				</FormAlert>
-			) : null}
-			<FormAlert tone="success">{notice}</FormAlert>
 			<form ref={formRef} onSubmit={form.onSubmit} noValidate>
 				<FieldGroup>
 					<FormAlert>{form.formError}</FormAlert>
@@ -120,22 +128,21 @@ function EmailSection({ email }: { email: string }) {
 function PasswordSection() {
 	const changePasswordFn = useServerFn(changePassword);
 	const formRef = useRef<HTMLFormElement>(null);
-	const [notice, setNotice] = useState<string | null>(null);
 	const form = useSchemaForm(
 		passwordChangeFormSchema,
 		async ({ currentPassword, password }) => {
-			setNotice(null);
 			await changePasswordFn({ data: { currentPassword, password } });
 			formRef.current?.reset();
-			setNotice(
-				"Password changed. Your other devices will be signed out within the hour.",
-			);
+			toast.add({
+				type: "success",
+				title: "Password changed.",
+				description: "Your other devices will be signed out within the hour.",
+			});
 		},
 	);
 
 	return (
 		<Section title="Password">
-			<FormAlert tone="success">{notice}</FormAlert>
 			<form ref={formRef} onSubmit={form.onSubmit} noValidate>
 				<FieldGroup>
 					<FormAlert>{form.formError}</FormAlert>

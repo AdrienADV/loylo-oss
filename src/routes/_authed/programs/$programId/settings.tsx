@@ -13,6 +13,7 @@ import {
 } from "#/features/programs/programs.functions";
 import { FormAlert } from "@/components/form-alert";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 
 const programRoute = getRouteApi("/_authed/programs/$programId");
 
@@ -24,7 +25,7 @@ function ProgramSettingsPage() {
 	const program = programRoute.useLoaderData();
 	const router = useRouter();
 	const updateProgramFn = useServerFn(updateProgram);
-	const [notice, setNotice] = useState<string | null>(null);
+	const [syncFailed, setSyncFailed] = useState(false);
 
 	if (program.role !== "admin") {
 		return (
@@ -37,7 +38,11 @@ function ProgramSettingsPage() {
 	return (
 		<div className="flex flex-col gap-10">
 			<div className="flex flex-col gap-4">
-				<FormAlert tone="success">{notice}</FormAlert>
+				<FormAlert>
+					{syncFailed
+						? "Some wallet cards could not be updated. Save again to retry."
+						: null}
+				</FormAlert>
 				<ProgramForm
 					key={program.id}
 					initialValues={program}
@@ -47,11 +52,8 @@ function ProgramSettingsPage() {
 						formData.set("programId", program.id);
 						const { walletSync } = await updateProgramFn({ data: formData });
 						await router.invalidate();
-						setNotice(
-							walletSync === "failed"
-								? "Changes saved, but some wallet cards could not be updated. Save again to retry."
-								: "Changes saved.",
-						);
+						setSyncFailed(walletSync === "failed");
+						toast.add({ type: "success", title: "Changes saved." });
 					}}
 				/>
 			</div>
